@@ -66,26 +66,31 @@ export function getIngredientById(id) {
 }
 
 export async function addIngredient(ingredient) {
-  const ref = await addDoc(householdCollection("ingredients"), {
+  const now = Date.now();
+  const savedIngredient = {
     ...ingredient,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  });
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const ref = await addDoc(householdCollection("ingredients"), savedIngredient);
 
   ingredients.push({
     id: ref.id,
-    ...ingredient
+    ...savedIngredient
   });
 }
 
 export async function updateIngredient(id, updated) {
-  await updateDoc(householdDoc("ingredients", id), {
+  const savedIngredient = {
     ...updated,
     updatedAt: Date.now()
-  });
+  };
+
+  await updateDoc(householdDoc("ingredients", id), savedIngredient);
 
   ingredients = ingredients.map(i =>
-    i.id === id ? { ...i, ...updated } : i
+    i.id === id ? { ...i, ...savedIngredient } : i
   );
 }
 

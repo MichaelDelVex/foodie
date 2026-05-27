@@ -72,6 +72,18 @@ textarea {
   outline: none;
 }
 
+textarea {
+  resize: vertical;
+}
+
+label span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -98,6 +110,18 @@ button.secondary {
 
 button.danger {
   background: var(--danger);
+}
+
+button.danger-text {
+  color: #fecaca;
+}
+
+button.small-button,
+.small-button {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  font-size: 12px;
 }
 
 .login-screen {
@@ -220,6 +244,236 @@ button.danger {
   border-color: var(--border);
 }
 
+.nav button.active {
+  color: var(--text);
+  background: rgba(251, 113, 133, 0.13);
+  border-color: rgba(251, 113, 133, 0.35);
+}
+
+.view-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.view-header h2 {
+  margin-bottom: 4px;
+}
+
+.view-header button {
+  min-width: 86px;
+  flex: 0 0 auto;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.form-error {
+  min-height: 20px;
+  margin: 0;
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ingredient-toolbar {
+  display: grid;
+  gap: 8px;
+}
+
+.search-field input {
+  margin-bottom: 0;
+}
+
+.ingredient-group {
+  margin-top: 18px;
+}
+
+.group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+
+.group-heading h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.group-heading span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ingredient-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ingredient-card-header {
+  display: grid;
+  gap: 12px;
+}
+
+.ingredient-card h3 {
+  margin: 0 0 7px;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.category-pill {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.13);
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.macro-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.macro-row > div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.macro-row strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 21px;
+}
+
+.macro-row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ingredient-notes {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-state {
+  padding: 28px 18px;
+  margin-top: 14px;
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.empty-state h3 {
+  margin-bottom: 5px;
+  letter-spacing: 0;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  align-items: end;
+  padding: 14px;
+  background: rgba(3, 7, 18, 0.74);
+  backdrop-filter: blur(10px);
+}
+
+.modal-panel {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+  margin: 0 auto;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: rgba(17, 24, 39, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+}
+
+.modal-header {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.modal-body {
+  padding: 14px;
+}
+
+.modal-copy {
+  margin: 0;
+}
+
+.modal-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+.modal-action {
+  min-width: 94px;
+}
+
+.icon-button {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 24px;
+  line-height: 1;
+}
+
 @media (min-width: 900px) {
   .nav {
     top: 0;
@@ -246,5 +500,27 @@ button.danger {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ingredient-toolbar {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .ingredient-card-header {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .card-actions {
+    width: 160px;
+  }
+
+  .modal-backdrop {
+    align-items: center;
   }
 }

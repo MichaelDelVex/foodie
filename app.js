@@ -22,14 +22,22 @@ window.switchView = function (view) {
 function renderNav() {
   if (!currentUser) return "";
 
+  const navItems = [
+    ["ingredients", "Ingredients"],
+    ["recipe", "Recipe"],
+    ["saved", "Saved"],
+    ["quick", "Quick"],
+    ["calculator", "Calc"],
+    ["settings", "Settings"]
+  ];
+
   return `
     <nav class="nav">
-      <button onclick="switchView('ingredients')">Ingredients</button>
-      <button onclick="switchView('recipe')">Recipe</button>
-      <button onclick="switchView('saved')">Saved</button>
-      <button onclick="switchView('quick')">Quick</button>
-      <button onclick="switchView('calculator')">Calc</button>
-      <button onclick="switchView('settings')">Settings</button>
+      ${navItems
+        .map(([view, label]) => `
+          <button class="${currentView === view ? "active" : ""}" onclick="switchView('${view}')">${label}</button>
+        `)
+        .join("")}
     </nav>
   `;
 }
