@@ -217,6 +217,7 @@ function renderQuickFoodList() {
       <div class="empty-state">
         <h3>${searchQuery ? "No matching quick foods" : "No quick foods yet"}</h3>
         <p class="muted">${searchQuery ? "Try another search term." : "Add takeaway, ready meals, sushi, or packaged foods for fast lookup."}</p>
+        ${searchQuery ? "" : `<button type="button" class="secondary small-button empty-action" data-add-quick-food>Add Quick Food</button>`}
       </div>
     `;
   }

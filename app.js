@@ -25,7 +25,7 @@ function renderNav() {
     ["ingredients", "Ingredients"],
     ["recipe", "Recipes"],
     ["quick", "Quick"],
-    ["calculator", "Calc"],
+    ["calculator", "Scratch"],
     ["settings", "Settings"]
   ];
 

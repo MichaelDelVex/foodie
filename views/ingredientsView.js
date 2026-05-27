@@ -242,6 +242,7 @@ function renderIngredientsList() {
       <div class="empty-state">
         <h3>${searchQuery ? "No matching ingredients" : "No ingredients yet"}</h3>
         <p class="muted">${searchQuery ? "Try a different search term." : "Add raw ingredients with calories and protein per 100g."}</p>
+        ${searchQuery ? "" : `<button type="button" class="secondary small-button empty-action" data-add-ingredient>Add Ingredient</button>`}
       </div>
     `;
   }

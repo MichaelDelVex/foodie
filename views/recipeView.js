@@ -18,6 +18,8 @@ let listenersBound = false;
 let recipeMessage = "";
 let recipeMessageIsError = false;
 let activePickerIndex = null;
+let activeRecipeItemIndex = null;
+let modalRecipeItem = null;
 let recipeMode = "list";
 let recipeSearchQuery = "";
 let expandedRecipeIds = new Set();
@@ -140,6 +142,21 @@ function renderItemSummary(item) {
   `;
 }
 
+function renderRecipeItemCard(item, index) {
+  const ingredient = getIngredients().find((i) => i.id === item.ingredientId);
+  const itemNutrition = calculateRecipeNutrition({ items: [item] }, getIngredients());
+
+  return `
+    <button type="button" class="recipe-builder-card" data-edit-recipe-item="${index}">
+      <span>
+        <strong>${escapeHtml(ingredient?.name || "Missing ingredient")}</strong>
+        <small>${formatMacro(Number(item.grams) || 0)}g raw · ${formatMacro(itemNutrition.calories)} cal · ${formatMacro(itemNutrition.protein, 1)}g protein</small>
+      </span>
+      <span class="recipe-card-chevron">›</span>
+    </button>
+  `;
+}
+
 function renderRecipeItems() {
   if (!draft.items.length) {
     return `
@@ -150,44 +167,11 @@ function renderRecipeItems() {
     `;
   }
 
-  return draft.items.map((item, index) => {
-    return `
-      <article class="recipe-item" data-recipe-item="${index}">
-        <label>
-          <span>Ingredient</span>
-          <button type="button" class="ingredient-picker-button" data-open-ingredient-picker="${index}">
-            <strong>${escapeHtml(getIngredientName(item) || "Choose ingredient")}</strong>
-            <small>${getIngredientName(item) ? "Tap to change" : "Search saved ingredients"}</small>
-          </button>
-        </label>
-
-        <label>
-          <span>Raw grams</span>
-          <input data-recipe-field="grams" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.grams)}" placeholder="100" />
-        </label>
-
-        <label>
-          <span>Calories</span>
-          <input
-            data-recipe-field="calories"
-            data-index="${index}"
-            type="number"
-            min="0"
-            step="1"
-            value="${escapeHtml(formatInputNumber(getCaloriesFromGrams(item.ingredientId, item.grams), 0))}"
-            placeholder="250"
-            ${item.ingredientId ? "" : "disabled"}
-          />
-        </label>
-
-        <div class="item-summary" data-item-summary="${index}">
-          ${renderItemSummary(item)}
-        </div>
-
-        <button type="button" class="secondary small-button" data-remove-recipe-item="${index}">Remove</button>
-      </article>
-    `;
-  }).join("");
+  return `
+    <div class="recipe-builder-list">
+      ${draft.items.map(renderRecipeItemCard).join("")}
+    </div>
+  `;
 }
 
 function renderTotals() {
@@ -286,7 +270,7 @@ function renderRecipeCard(recipe) {
           <small>${formatMacro(perPortion.calories)} cal / portion · ${escapeHtml(recipe.portions || 1)} portions</small>
           <small>${escapeHtml(getRecipeSummary(recipe))}</small>
         </span>
-        <span class="recipe-card-chevron">${expanded ? "Hide" : "Show"}</span>
+        <span class="recipe-card-chevron">${expanded ? "⌃" : "⌄"}</span>
       </button>
 
       ${expanded ? renderRecipeIngredientList(recipe) : ""}
@@ -305,6 +289,7 @@ function renderRecipeList() {
       <div class="empty-state">
         <h3>${recipeSearchQuery ? "No matching recipes" : "No recipes yet"}</h3>
         <p class="muted">${recipeSearchQuery ? "Try another recipe name." : "Add a recipe from raw ingredients and save it here."}</p>
+        ${recipeSearchQuery ? "" : `<button type="button" class="secondary small-button empty-action" data-start-recipe>Add Recipe</button>`}
       </div>
     `;
   }
@@ -374,6 +359,109 @@ function refreshRecipeBuilder() {
   if (items) items.innerHTML = renderRecipeItems();
   if (totals) totals.innerHTML = renderTotals();
   if (saveButton) saveButton.textContent = draft.id ? "Update Recipe" : "Save Recipe";
+}
+
+function renderIngredientEditorResults(query = "") {
+  return renderIngredientPickerResults(query).replaceAll("data-pick-ingredient", "data-pick-editor-ingredient");
+}
+
+function renderIngredientEditorContent(query = "") {
+  const ingredient = getIngredients().find((i) => i.id === modalRecipeItem?.ingredientId);
+  const calories = getCaloriesFromGrams(modalRecipeItem?.ingredientId, modalRecipeItem?.grams);
+
+  return `
+    <div class="stack">
+      <p class="form-error" id="recipe-editor-error" aria-live="polite"></p>
+
+      <div class="selected-ingredient">
+        <span class="muted">Selected ingredient</span>
+        <strong>${escapeHtml(ingredient?.name || "None selected")}</strong>
+        ${ingredient ? `<small>${formatMacro(ingredient.caloriesPer100g)} cal / 100g · ${formatMacro(ingredient.proteinPer100g, 1)}g protein</small>` : `<small>Search and tap an ingredient below.</small>`}
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>Raw grams</span>
+          <input id="recipe-editor-grams" type="number" min="0" step="1" value="${escapeHtml(modalRecipeItem?.grams || "")}" placeholder="100" ${ingredient ? "" : "disabled"} />
+        </label>
+
+        <label>
+          <span>Calories</span>
+          <input id="recipe-editor-calories" type="number" min="0" step="1" value="${escapeHtml(formatInputNumber(calories, 0))}" placeholder="250" ${ingredient ? "" : "disabled"} />
+        </label>
+      </div>
+
+      <label class="search-field">
+        <span>Search ingredients</span>
+        <input id="recipe-editor-search" type="search" value="${escapeHtml(query)}" placeholder="Type a name or category" autocomplete="off" />
+      </label>
+
+      <div class="picker-results" id="recipe-editor-results">
+        ${renderIngredientEditorResults(query)}
+      </div>
+    </div>
+  `;
+}
+
+function refreshIngredientEditor(query = "") {
+  const body = document.querySelector("#modal-root .modal-body");
+  if (body) body.innerHTML = renderIngredientEditorContent(query);
+}
+
+function openRecipeItemModal(index = null) {
+  activeRecipeItemIndex = index;
+  modalRecipeItem = index === null
+    ? { ingredientId: "", grams: "" }
+    : { ...draft.items[index] };
+
+  showModal({
+    title: index === null ? "Next Ingredient" : "Edit Ingredient",
+    content: renderIngredientEditorContent(),
+    actions: [
+      {
+        label: "Remove",
+        className: "secondary danger-text",
+        onClick: () => {
+          if (activeRecipeItemIndex !== null) {
+            draft.items.splice(activeRecipeItemIndex, 1);
+            refreshRecipeBuilder();
+          }
+          closeModal();
+        }
+      },
+      {
+        label: index === null ? "Add" : "Update",
+        onClick: () => {
+          const grams = Number(modalRecipeItem?.grams) || 0;
+          const error = document.getElementById("recipe-editor-error");
+
+          if (!modalRecipeItem?.ingredientId || grams <= 0) {
+            if (error) error.textContent = "Choose an ingredient and add grams or calories.";
+            return false;
+          }
+
+          const nextItem = {
+            ingredientId: modalRecipeItem.ingredientId,
+            grams
+          };
+
+          if (activeRecipeItemIndex === null) {
+            draft.items.push(nextItem);
+          } else {
+            draft.items[activeRecipeItemIndex] = nextItem;
+          }
+
+          setRecipeMessage("");
+          refreshRecipeBuilder();
+          return true;
+        }
+      }
+    ],
+    onClose: () => {
+      activeRecipeItemIndex = null;
+      modalRecipeItem = null;
+    }
+  });
 }
 
 function refreshRecipeItemIngredient(index) {
@@ -606,8 +694,13 @@ function bindRecipeListeners() {
     }
 
     if (event.target.closest("[data-add-recipe-item]")) {
-      draft.items.push({ ingredientId: "", grams: "" });
-      refreshRecipeBuilder();
+      openRecipeItemModal();
+      return;
+    }
+
+    const editRecipeItemButton = event.target.closest("[data-edit-recipe-item]");
+    if (editRecipeItemButton) {
+      openRecipeItemModal(Number(editRecipeItemButton.dataset.editRecipeItem));
       return;
     }
 
@@ -620,6 +713,14 @@ function bindRecipeListeners() {
     const ingredientButton = event.target.closest("[data-pick-ingredient]");
     if (ingredientButton) {
       selectIngredient(ingredientButton.dataset.pickIngredient);
+      return;
+    }
+
+    const editorIngredientButton = event.target.closest("[data-pick-editor-ingredient]");
+    if (editorIngredientButton && modalRecipeItem) {
+      modalRecipeItem.ingredientId = editorIngredientButton.dataset.pickEditorIngredient;
+      modalRecipeItem.grams = modalRecipeItem.grams || "";
+      refreshIngredientEditor(document.getElementById("recipe-editor-search")?.value || "");
       return;
     }
 
@@ -641,6 +742,31 @@ function bindRecipeListeners() {
   });
 
   document.addEventListener("input", (event) => {
+    if (event.target.id === "recipe-editor-search") {
+      const results = document.getElementById("recipe-editor-results");
+      if (results) results.innerHTML = renderIngredientEditorResults(event.target.value);
+      return;
+    }
+
+    if (event.target.id === "recipe-editor-grams" && modalRecipeItem) {
+      modalRecipeItem.grams = event.target.value;
+      const caloriesInput = document.getElementById("recipe-editor-calories");
+      if (caloriesInput) {
+        caloriesInput.value = formatInputNumber(getCaloriesFromGrams(modalRecipeItem.ingredientId, modalRecipeItem.grams), 0);
+      }
+      return;
+    }
+
+    if (event.target.id === "recipe-editor-calories" && modalRecipeItem) {
+      modalRecipeItem.grams = formatInputNumber(
+        getGramsFromCalories(modalRecipeItem.ingredientId, event.target.value),
+        1
+      );
+      const gramsInput = document.getElementById("recipe-editor-grams");
+      if (gramsInput) gramsInput.value = modalRecipeItem.grams;
+      return;
+    }
+
     if (event.target.id !== "ingredient-picker-search") return;
 
     const results = document.getElementById("ingredient-picker-results");
@@ -725,7 +851,7 @@ export function renderRecipeView() {
 
       <div class="section-heading">
         <h3>Ingredients</h3>
-        <button type="button" class="secondary small-button" data-add-recipe-item ${hasIngredients ? "" : "disabled"}>Add Ingredient</button>
+        <button type="button" class="secondary small-button" data-add-recipe-item ${hasIngredients ? "" : "disabled"}>Next Ingredient</button>
       </div>
 
       <div id="recipe-items">

@@ -334,6 +334,79 @@ button.small-button,
   min-height: 42px;
 }
 
+.settings-profile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.settings-profile h3 {
+  margin: 0 0 3px;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.settings-profile button {
+  grid-column: 1 / -1;
+}
+
+.settings-avatar {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(251, 113, 133, 0.16);
+  border: 1px solid var(--border);
+  color: #fecdd3;
+  font-weight: 900;
+}
+
+.settings-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-row span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-size: 13px;
+}
+
+.settings-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-stats .metric {
+  padding: 12px;
+}
+
+.settings-stats .metric strong {
+  font-size: 22px;
+}
+
 .scratch-total {
   margin-bottom: 14px;
 }
@@ -420,6 +493,68 @@ button.small-button,
   border-radius: 16px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.035);
+}
+
+.recipe-builder-list {
+  display: grid;
+  gap: 9px;
+}
+
+.recipe-builder-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: auto;
+  padding: 12px;
+  text-align: left;
+  border-radius: 15px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.recipe-builder-card span:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.recipe-builder-card strong,
+.recipe-builder-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recipe-builder-card strong {
+  font-size: 15px;
+}
+
+.recipe-builder-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.selected-ingredient {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.selected-ingredient strong {
+  font-size: 16px;
+}
+
+.selected-ingredient small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .ingredient-picker-button {
@@ -834,6 +969,10 @@ button.small-button,
   letter-spacing: 0;
 }
 
+.empty-action {
+  margin-top: 12px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -980,6 +1119,14 @@ button.small-button,
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+  }
+
+  .settings-profile {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .settings-profile button {
+    grid-column: auto;
   }
 
   .form-grid {

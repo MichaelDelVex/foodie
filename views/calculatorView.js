@@ -484,7 +484,7 @@ export function renderCalculatorView() {
   return `
     <section class="view-header">
       <div>
-        <h2>Daily Calc</h2>
+        <h2>Scratch Pad</h2>
         <p class="muted">A fast scratchpad for ingredients, recipes, quick foods, and manual calories.</p>
       </div>
       <button type="button" class="secondary" data-clear-scratchpad>Clear</button>
