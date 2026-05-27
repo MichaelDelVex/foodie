@@ -217,31 +217,19 @@ function openDeleteModal(id) {
 function renderIngredientCard(ingredient) {
   return `
     <article class="ingredient-card">
-      <div class="ingredient-card-header">
-        <div>
-          <h3>${escapeHtml(ingredient.name)}</h3>
-          <span class="category-pill">${escapeHtml(ingredient.category || "Other")}</span>
-        </div>
-        <div class="card-actions">
-          <button type="button" class="secondary small-button" data-edit-ingredient="${ingredient.id}">Edit</button>
-          <button type="button" class="secondary small-button danger-text" data-delete-ingredient="${ingredient.id}">Delete</button>
-        </div>
+      <div class="compact-card-header">
+        <h3>${escapeHtml(ingredient.name)}</h3>
+        <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(ingredient.name)}" data-delete-ingredient="${ingredient.id}">x</button>
       </div>
 
-      <div class="macro-row">
-        <div>
-          <span class="muted">Calories</span>
-          <strong>${formatNumber(ingredient.caloriesPer100g)}</strong>
-          <small>per 100g</small>
-        </div>
-        <div>
-          <span class="muted">Protein</span>
-          <strong>${formatNumber(ingredient.proteinPer100g)}g</strong>
-          <small>per 100g</small>
-        </div>
+      <div class="compact-card-meta">
+        <span class="category-pill">${escapeHtml(ingredient.category || "Other")}</span>
+        <span class="compact-macros">${formatNumber(ingredient.caloriesPer100g)} cal / 100g · ${formatNumber(ingredient.proteinPer100g)}g protein</span>
       </div>
 
       ${ingredient.notes ? `<p class="ingredient-notes">${escapeHtml(ingredient.notes)}</p>` : ""}
+
+      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(ingredient.name)}" data-edit-ingredient="${ingredient.id}">Edit</button>
     </article>
   `;
 }

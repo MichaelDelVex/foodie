@@ -57,6 +57,10 @@ export function getQuickFoods() {
   return quickFoods;
 }
 
+export function getQuickFoodById(id) {
+  return quickFoods.find(food => food.id === id);
+}
+
 export function getRecipes() {
   return recipes;
 }
@@ -104,16 +108,37 @@ export async function deleteIngredient(id) {
 }
 
 export async function addQuickFood(food) {
-  const ref = await addDoc(householdCollection("quickFoods"), {
+  const now = Date.now();
+  const savedFood = {
     ...food,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  });
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const ref = await addDoc(householdCollection("quickFoods"), savedFood);
 
   quickFoods.push({
     id: ref.id,
-    ...food
+    ...savedFood
   });
+}
+
+export async function updateQuickFood(id, updated) {
+  const savedFood = {
+    ...updated,
+    updatedAt: Date.now()
+  };
+
+  await updateDoc(householdDoc("quickFoods", id), savedFood);
+
+  quickFoods = quickFoods.map(food =>
+    food.id === id ? { ...food, ...savedFood } : food
+  );
+}
+
+export async function deleteQuickFood(id) {
+  await deleteDoc(householdDoc("quickFoods", id));
+  quickFoods = quickFoods.filter(food => food.id !== id);
 }
 
 export async function addRecipe(recipe) {

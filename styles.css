@@ -439,10 +439,88 @@ button.small-button,
 }
 
 .ingredient-card {
+  position: relative;
   padding: 14px;
   border-radius: 16px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.compact-card-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.compact-card-header h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.icon-action {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.icon-action:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.compact-card-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding-right: 34px;
+}
+
+.compact-macros {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.edit-action {
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  color: transparent;
+  font-size: 0;
+}
+
+.edit-action::before {
+  content: "✎";
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.ingredient-card .ingredient-notes {
+  margin-top: 8px;
+  padding-right: 34px;
 }
 
 .saved-recipe-card {
@@ -450,6 +528,43 @@ button.small-button,
   border-radius: 16px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.quick-food-card {
+  position: relative;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.quick-food-notes {
+  margin: 7px 34px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quick-food-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+  padding-right: 34px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.quick-food-meta span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.quick-food-meta strong {
+  color: var(--text);
+  font-size: 16px;
 }
 
 .ingredient-card-header {
