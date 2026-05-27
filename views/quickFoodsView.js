@@ -194,7 +194,7 @@ function renderQuickFoodCard(food) {
     <article class="quick-food-card">
       <div class="compact-card-header">
         <h3>${escapeHtml(getFoodTitle(food) || "Untitled quick food")}</h3>
-        <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(getFoodTitle(food))}" data-delete-quick-food="${food.id}">x</button>
+        <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(getFoodTitle(food))}" data-delete-quick-food="${food.id}">&times;</button>
       </div>
 
       ${getFoodNotes(food) ? `<p class="quick-food-notes">${escapeHtml(getFoodNotes(food))}</p>` : ""}
@@ -204,7 +204,7 @@ function renderQuickFoodCard(food) {
         <span>${escapeHtml(getFoodServes(food))}</span>
       </div>
 
-      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(getFoodTitle(food))}" data-edit-quick-food="${food.id}">Edit</button>
+      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(getFoodTitle(food))}" data-edit-quick-food="${food.id}">&#9998;</button>
     </article>
   `;
 }

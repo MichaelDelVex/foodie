@@ -291,8 +291,8 @@ function renderRecipeCard(recipe) {
 
       ${expanded ? renderRecipeIngredientList(recipe) : ""}
 
-      <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(recipe.name || "recipe")}" data-delete-recipe="${recipe.id}">x</button>
-      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(recipe.name || "recipe")}" data-edit-recipe="${recipe.id}">Edit</button>
+      <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(recipe.name || "recipe")}" data-delete-recipe="${recipe.id}">&times;</button>
+      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(recipe.name || "recipe")}" data-edit-recipe="${recipe.id}">&#9998;</button>
     </article>
   `;
 }

@@ -560,12 +560,14 @@ button.small-button,
   height: 30px;
   min-height: 30px;
   padding: 0;
+  margin: 0;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border);
   color: var(--muted);
   font-size: 14px;
-  line-height: 1;
+  line-height: 30px;
+  text-align: center;
 }
 
 .icon-action:hover {
@@ -610,6 +612,19 @@ button.small-button,
 .ingredient-card .ingredient-notes {
   margin-top: 8px;
   padding-right: 34px;
+}
+
+.edit-action {
+  bottom: 12px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.edit-action::before {
+  content: none;
 }
 
 .saved-recipe-card {
@@ -669,8 +684,8 @@ button.small-button,
 
 .recipe-library-card > .icon-action.danger-text {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
 }
 
 .recipe-ingredient-list {

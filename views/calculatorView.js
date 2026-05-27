@@ -171,7 +171,7 @@ function renderScratchItems() {
         ${formatMacro(getScratchItemCalories(item))} cal
       </div>
 
-      <button type="button" class="icon-action danger-text" aria-label="Remove ${escapeHtml(getScratchItemTitle(item))}" data-remove-scratch-item="${index}">x</button>
+      <button type="button" class="icon-action danger-text" aria-label="Remove ${escapeHtml(getScratchItemTitle(item))}" data-remove-scratch-item="${index}">&times;</button>
     </article>
   `).join("");
 }

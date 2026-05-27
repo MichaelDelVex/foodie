@@ -219,7 +219,7 @@ function renderIngredientCard(ingredient) {
     <article class="ingredient-card">
       <div class="compact-card-header">
         <h3>${escapeHtml(ingredient.name)}</h3>
-        <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(ingredient.name)}" data-delete-ingredient="${ingredient.id}">x</button>
+        <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(ingredient.name)}" data-delete-ingredient="${ingredient.id}">&times;</button>
       </div>
 
       <div class="compact-card-meta">
@@ -229,7 +229,7 @@ function renderIngredientCard(ingredient) {
 
       ${ingredient.notes ? `<p class="ingredient-notes">${escapeHtml(ingredient.notes)}</p>` : ""}
 
-      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(ingredient.name)}" data-edit-ingredient="${ingredient.id}">Edit</button>
+      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(ingredient.name)}" data-edit-ingredient="${ingredient.id}">&#9998;</button>
     </article>
   `;
 }
