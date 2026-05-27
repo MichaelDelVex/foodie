@@ -102,6 +102,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 button.secondary {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text);
@@ -285,6 +290,115 @@ button.small-button,
   font-weight: 700;
 }
 
+.success-copy {
+  min-height: 20px;
+  margin: 12px 0;
+  color: #bbf7d0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.danger-copy {
+  color: #fecaca;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 10px;
+}
+
+.section-heading h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.recipe-shell {
+  display: grid;
+  gap: 4px;
+}
+
+.recipe-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.ingredient-picker-button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 52px;
+  margin: 7px 0;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.ingredient-picker-button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.ingredient-picker-button small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ingredient-picker-button:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.16);
+}
+
+.item-summary {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.item-summary strong {
+  font-size: 16px;
+}
+
+.item-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.recipe-totals {
+  margin-bottom: 4px;
+}
+
+.metric small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.compact-empty {
+  margin-top: 8px;
+  padding: 22px 14px;
+}
+
 .ingredient-toolbar {
   display: grid;
   gap: 8px;
@@ -325,6 +439,13 @@ button.small-button,
 }
 
 .ingredient-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.saved-recipe-card {
   padding: 14px;
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -462,6 +583,56 @@ button.small-button,
   min-width: 94px;
 }
 
+.picker-results {
+  display: grid;
+  gap: 8px;
+  max-height: min(54vh, 440px);
+  overflow: auto;
+  padding-top: 8px;
+}
+
+.picker-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.picker-result strong,
+.picker-result small {
+  display: block;
+}
+
+.picker-result strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.picker-result small,
+.picker-macros small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.picker-macros {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .icon-button {
   min-width: 42px;
   min-height: 42px;
@@ -518,6 +689,16 @@ button.small-button,
 
   .card-actions {
     width: 160px;
+  }
+
+  .recipe-item {
+    grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.7fr) minmax(120px, 0.6fr) auto;
+    align-items: end;
+  }
+
+  .recipe-item .small-button {
+    min-width: 86px;
+    margin-bottom: 7px;
   }
 
   .modal-backdrop {

@@ -65,7 +65,9 @@ export function showModal({ title, content, actions = [], onClose }) {
     runAction(0);
   });
 
-  const firstField = container.querySelector("input, select, textarea, button");
+  const firstField = container.querySelector(
+    ".modal-body input, .modal-body select, .modal-body textarea, .modal-footer button, .modal-header button"
+  );
   firstField?.focus();
 }
 
