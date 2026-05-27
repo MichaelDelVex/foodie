@@ -26,19 +26,19 @@ function formatNumber(value) {
 }
 
 function getFoodTitle(food) {
-  return food.title || food.name || "";
+  return food?.title || food?.name || "";
 }
 
 function getFoodCalories(food) {
-  return food.calories ?? food.caloriesPerServe ?? "";
+  return food?.calories ?? food?.caloriesPerServe ?? "";
 }
 
 function getFoodServes(food) {
-  return food.serves || food.servingDescription || "";
+  return food?.serves || food?.servingDescription || "";
 }
 
 function getFoodNotes(food) {
-  return food.notes || "";
+  return food?.notes || "";
 }
 
 function getFilteredQuickFoods() {
