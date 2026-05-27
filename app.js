@@ -24,8 +24,8 @@ function renderNav() {
   const navItems = [
     ["ingredients", "Ingredients"],
     ["recipe", "Recipes"],
-    ["quick", "Quick"],
     ["calculator", "Scratch"],
+    ["quick", "Quick"],
     ["settings", "Settings"]
   ];
 
