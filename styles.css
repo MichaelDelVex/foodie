@@ -318,6 +318,85 @@ button.small-button,
   letter-spacing: 0;
 }
 
+.compact-heading {
+  margin-bottom: 8px;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.scratchpad-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.scratchpad-actions .small-button {
+  min-height: 42px;
+}
+
+.scratch-total {
+  margin-bottom: 14px;
+}
+
+.scratch-total strong {
+  font-size: 34px;
+}
+
+.scratch-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 0.45fr);
+  gap: 10px;
+  align-items: end;
+  position: relative;
+  padding: 12px 44px 12px 12px;
+  margin-top: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.scratch-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.scratch-main strong,
+.scratch-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scratch-main strong {
+  font-size: 15px;
+}
+
+.scratch-main span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.scratch-amount input {
+  min-height: 42px;
+  margin-bottom: 0;
+  padding: 9px 10px;
+}
+
+.scratch-calories {
+  grid-column: 1 / -1;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.scratch-item .icon-action {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
 .recipe-shell {
   display: grid;
   gap: 4px;

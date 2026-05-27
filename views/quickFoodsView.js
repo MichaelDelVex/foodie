@@ -257,6 +257,8 @@ function bindQuickFoodListeners() {
   });
 }
 
+window.openQuickFoodModal = openQuickFoodModal;
+
 export function renderQuickFoodsView() {
   bindQuickFoodListeners();
 
@@ -266,7 +268,7 @@ export function renderQuickFoodsView() {
         <h2>Quick Foods</h2>
         <p class="muted">Fast calorie lookups for takeaway, ready meals, and packaged foods.</p>
       </div>
-      <button type="button" data-add-quick-food>Add</button>
+      <button type="button" data-add-quick-food onclick="event.stopPropagation(); window.openQuickFoodModal()">Add</button>
     </section>
 
     <section class="card ingredient-toolbar">
