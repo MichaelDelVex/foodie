@@ -44,11 +44,30 @@ function getRecipeCaloriesPerPortion(recipe) {
   return calculatePerPortion(totals, recipe.portions).calories;
 }
 
+function getIngredientCaloriesPer100g(ingredientId) {
+  const ingredient = getIngredients().find((candidate) => candidate.id === ingredientId);
+  return Number(ingredient?.caloriesPer100g) || 0;
+}
+
+function getCaloriesFromGrams(ingredientId, grams) {
+  return getIngredientCaloriesPer100g(ingredientId) * (Number(grams) || 0) / 100;
+}
+
+function getGramsFromCalories(ingredientId, calories) {
+  const caloriesPer100g = getIngredientCaloriesPer100g(ingredientId);
+  if (caloriesPer100g <= 0) return "";
+  return (Number(calories) || 0) * 100 / caloriesPer100g;
+}
+
+function formatInputNumber(value, decimals = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "";
+  return Number(number.toFixed(decimals)).toString();
+}
+
 function getScratchItemCalories(item) {
   if (item.type === "ingredient") {
-    const ingredient = getIngredients().find((candidate) => candidate.id === item.id);
-    if (!ingredient) return 0;
-    return (Number(ingredient.caloriesPer100g) || 0) * (Number(item.amount) || 0) / 100;
+    return getCaloriesFromGrams(item.id, item.amount);
   }
 
   if (item.type === "recipe") {
@@ -124,7 +143,19 @@ function renderScratchItems() {
         <span data-scratch-detail="${index}">${escapeHtml(getScratchItemDetail(item))}</span>
       </div>
 
-      ${item.type === "manual" ? `
+      ${item.type === "ingredient" ? `
+        <div class="paired-inputs">
+          <label class="scratch-amount">
+            <span>Grams</span>
+            <input data-scratch-field="amount" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.amount)}" />
+          </label>
+
+          <label class="scratch-amount">
+            <span>Calories</span>
+            <input data-scratch-field="ingredientCalories" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(formatInputNumber(getScratchItemCalories(item), 0))}" />
+          </label>
+        </div>
+      ` : item.type === "manual" ? `
         <label class="scratch-amount">
           <span>Calories</span>
           <input data-scratch-field="calories" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.calories)}" />
@@ -177,6 +208,23 @@ function refreshScratchCalories(index) {
   }
 
   if (total) total.innerHTML = renderScratchTotal();
+}
+
+function refreshScratchPairedInput(index, field) {
+  const item = scratchItems[index];
+  const row = document.querySelector(`[data-scratch-item="${index}"]`);
+  if (!item || item.type !== "ingredient" || !row) return;
+
+  const gramsInput = row.querySelector('[data-scratch-field="amount"]');
+  const caloriesInput = row.querySelector('[data-scratch-field="ingredientCalories"]');
+
+  if (field === "amount" && caloriesInput) {
+    caloriesInput.value = formatInputNumber(getScratchItemCalories(item), 0);
+  }
+
+  if (field === "ingredientCalories" && gramsInput) {
+    gramsInput.value = item.amount;
+  }
 }
 
 function filterList(items, query, getText) {
@@ -416,7 +464,16 @@ function bindCalculatorListeners() {
     const index = Number(target.dataset.index);
     if (!scratchItems[index]) return;
 
-    scratchItems[index][field] = target.value;
+    if (field === "ingredientCalories" && scratchItems[index].type === "ingredient") {
+      scratchItems[index].amount = formatInputNumber(
+        getGramsFromCalories(scratchItems[index].id, target.value),
+        1
+      );
+    } else {
+      scratchItems[index][field] = target.value;
+    }
+
+    refreshScratchPairedInput(index, field);
     refreshScratchCalories(index);
   });
 }

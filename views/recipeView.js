@@ -1,7 +1,9 @@
 import {
   addRecipe,
+  deleteRecipe,
   getIngredients,
   getRecipeById,
+  getRecipes,
   updateRecipe
 } from "../core/store.js";
 import {
@@ -16,6 +18,9 @@ let listenersBound = false;
 let recipeMessage = "";
 let recipeMessageIsError = false;
 let activePickerIndex = null;
+let recipeMode = "list";
+let recipeSearchQuery = "";
+let expandedRecipeIds = new Set();
 
 function createEmptyDraft() {
   return {
@@ -59,6 +64,28 @@ function getDraftNutrition() {
 function getIngredientName(item) {
   const ingredient = getIngredients().find((i) => i.id === item.ingredientId);
   return ingredient?.name || "";
+}
+
+function getIngredientCaloriesPer100g(ingredientId) {
+  const ingredient = getIngredients().find((i) => i.id === ingredientId);
+  return Number(ingredient?.caloriesPer100g) || 0;
+}
+
+function getCaloriesFromGrams(ingredientId, grams) {
+  const caloriesPer100g = getIngredientCaloriesPer100g(ingredientId);
+  return caloriesPer100g * (Number(grams) || 0) / 100;
+}
+
+function getGramsFromCalories(ingredientId, calories) {
+  const caloriesPer100g = getIngredientCaloriesPer100g(ingredientId);
+  if (caloriesPer100g <= 0) return "";
+  return (Number(calories) || 0) * 100 / caloriesPer100g;
+}
+
+function formatInputNumber(value, decimals = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return "";
+  return Number(number.toFixed(decimals)).toString();
 }
 
 function getIngredientPickerResults(query = "") {
@@ -139,6 +166,20 @@ function renderRecipeItems() {
           <input data-recipe-field="grams" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.grams)}" placeholder="100" />
         </label>
 
+        <label>
+          <span>Calories</span>
+          <input
+            data-recipe-field="calories"
+            data-index="${index}"
+            type="number"
+            min="0"
+            step="1"
+            value="${escapeHtml(formatInputNumber(getCaloriesFromGrams(item.ingredientId, item.grams), 0))}"
+            placeholder="250"
+            ${item.ingredientId ? "" : "disabled"}
+          />
+        </label>
+
         <div class="item-summary" data-item-summary="${index}">
           ${renderItemSummary(item)}
         </div>
@@ -178,6 +219,153 @@ function renderTotals() {
   `;
 }
 
+function getFilteredRecipes() {
+  const query = recipeSearchQuery.trim().toLowerCase();
+  const recipes = [...getRecipes()].sort((a, b) =>
+    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+  );
+
+  if (!query) return recipes;
+
+  return recipes.filter((recipe) =>
+    (recipe.name || "").toLowerCase().includes(query)
+  );
+}
+
+function getRecipeIngredientLines(recipe) {
+  return (recipe.items || []).map((item) => {
+    const ingredient = getIngredients().find((candidate) => candidate.id === item.ingredientId);
+    const name = ingredient?.name || "Missing ingredient";
+    const calories = getCaloriesFromGrams(item.ingredientId, item.grams);
+
+    return {
+      name,
+      grams: Number(item.grams) || 0,
+      calories
+    };
+  });
+}
+
+function getRecipeSummary(recipe) {
+  const lines = getRecipeIngredientLines(recipe);
+  if (!lines.length) return "No ingredients";
+
+  const summary = lines.slice(0, 3).map((line) => line.name).join(", ");
+  return lines.length > 3 ? `${summary} +${lines.length - 3}` : summary;
+}
+
+function renderRecipeIngredientList(recipe) {
+  const lines = getRecipeIngredientLines(recipe);
+
+  if (!lines.length) {
+    return `<p class="muted recipe-expanded-empty">No ingredients saved on this recipe.</p>`;
+  }
+
+  return `
+    <ul class="recipe-ingredient-list">
+      ${lines.map((line) => `
+        <li>
+          <span>${escapeHtml(line.name)}</span>
+          <strong>${formatMacro(line.grams)}g · ${formatMacro(line.calories)} cal</strong>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+}
+
+function renderRecipeCard(recipe) {
+  const totals = calculateRecipeNutrition(recipe, getIngredients());
+  const perPortion = calculatePerPortion(totals, recipe.portions);
+  const expanded = expandedRecipeIds.has(recipe.id);
+
+  return `
+    <article class="saved-recipe-card recipe-library-card ${expanded ? "expanded" : ""}">
+      <button type="button" class="recipe-card-toggle" data-toggle-recipe="${recipe.id}" aria-expanded="${expanded}">
+        <span class="recipe-card-main">
+          <strong>${escapeHtml(recipe.name || "Untitled recipe")}</strong>
+          <small>${formatMacro(perPortion.calories)} cal / portion · ${escapeHtml(recipe.portions || 1)} portions</small>
+          <small>${escapeHtml(getRecipeSummary(recipe))}</small>
+        </span>
+        <span class="recipe-card-chevron">${expanded ? "Hide" : "Show"}</span>
+      </button>
+
+      ${expanded ? renderRecipeIngredientList(recipe) : ""}
+
+      <button type="button" class="icon-action danger-text" aria-label="Delete ${escapeHtml(recipe.name || "recipe")}" data-delete-recipe="${recipe.id}">x</button>
+      <button type="button" class="icon-action edit-action" aria-label="Edit ${escapeHtml(recipe.name || "recipe")}" data-edit-recipe="${recipe.id}">Edit</button>
+    </article>
+  `;
+}
+
+function renderRecipeList() {
+  const recipes = getFilteredRecipes();
+
+  if (!recipes.length) {
+    return `
+      <div class="empty-state">
+        <h3>${recipeSearchQuery ? "No matching recipes" : "No recipes yet"}</h3>
+        <p class="muted">${recipeSearchQuery ? "Try another recipe name." : "Add a recipe from raw ingredients and save it here."}</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="list">
+      ${recipes.map(renderRecipeCard).join("")}
+    </div>
+  `;
+}
+
+function refreshRecipeList() {
+  const results = document.getElementById("recipe-library-results");
+  const count = document.getElementById("recipe-library-count");
+
+  if (results) results.innerHTML = renderRecipeList();
+  if (count) count.textContent = `${getFilteredRecipes().length} saved`;
+}
+
+function startNewRecipe() {
+  draft = createEmptyDraft();
+  recipeMessage = "";
+  recipeMessageIsError = false;
+  recipeMode = "builder";
+  window.render();
+}
+
+function openDeleteRecipeModal(id) {
+  const recipe = getRecipeById(id);
+  if (!recipe) return;
+
+  showModal({
+    title: "Delete Recipe",
+    content: `
+      <p class="modal-copy">
+        Delete <strong>${escapeHtml(recipe.name || "this recipe")}</strong>? This removes it from saved recipes.
+      </p>
+    `,
+    actions: [
+      {
+        label: "Delete",
+        className: "danger",
+        onClick: async () => {
+          try {
+            await deleteRecipe(id);
+            expandedRecipeIds.delete(id);
+            window.render();
+          } catch (error) {
+            console.error("Could not delete recipe", error);
+            return false;
+          }
+        }
+      },
+      {
+        label: "Keep",
+        className: "secondary"
+      }
+    ]
+  });
+}
+
 function refreshRecipeBuilder() {
   const items = document.getElementById("recipe-items");
   const totals = document.getElementById("recipe-totals");
@@ -213,6 +401,27 @@ function refreshRecipeItemSummary(index) {
   if (summary && draft.items[index]) summary.innerHTML = renderItemSummary(draft.items[index]);
 }
 
+function refreshRecipePairedInput(index, field) {
+  const item = draft.items[index];
+  const row = document.querySelector(`[data-recipe-item="${index}"]`);
+  if (!item || !row) return;
+
+  const gramsInput = row.querySelector('[data-recipe-field="grams"]');
+  const caloriesInput = row.querySelector('[data-recipe-field="calories"]');
+
+  if (caloriesInput) {
+    caloriesInput.disabled = !item.ingredientId;
+  }
+
+  if (field === "grams" && caloriesInput) {
+    caloriesInput.value = formatInputNumber(getCaloriesFromGrams(item.ingredientId, item.grams), 0);
+  }
+
+  if (field === "calories" && gramsInput) {
+    gramsInput.value = item.grams;
+  }
+}
+
 function setRecipeMessage(message, isError = false) {
   recipeMessage = message || "";
   recipeMessageIsError = isError;
@@ -243,9 +452,17 @@ function handleRecipeFieldChange(target) {
   const index = Number(target.dataset.index);
   if (!draft.items[index]) return true;
 
-  draft.items[index][recipeField] = target.value;
+  if (recipeField === "calories") {
+    draft.items[index].grams = formatInputNumber(
+      getGramsFromCalories(draft.items[index].ingredientId, target.value),
+      1
+    );
+  } else {
+    draft.items[index][recipeField] = target.value;
+  }
 
   setRecipeMessage("");
+  refreshRecipePairedInput(index, recipeField);
   refreshRecipeItemSummary(index);
   refreshRecipeTotals();
   return true;
@@ -283,6 +500,7 @@ function selectIngredient(ingredientId) {
   draft.items[activePickerIndex].ingredientId = ingredientId;
   setRecipeMessage("");
   refreshRecipeItemIngredient(activePickerIndex);
+  refreshRecipePairedInput(activePickerIndex, "grams");
   refreshRecipeItemSummary(activePickerIndex);
   refreshRecipeTotals();
   closeModal();
@@ -318,10 +536,11 @@ async function saveDraft() {
       setRecipeMessage("Recipe updated.");
     } else {
       await addRecipe(savedRecipe);
-      draft = createEmptyDraft();
       setRecipeMessage("Recipe saved.");
     }
 
+    draft = createEmptyDraft();
+    recipeMode = "list";
     window.render();
   } catch (error) {
     console.error("Could not save recipe", error);
@@ -334,6 +553,12 @@ function bindRecipeListeners() {
   listenersBound = true;
 
   document.addEventListener("input", (event) => {
+    if (event.target.id === "recipe-library-search") {
+      recipeSearchQuery = event.target.value;
+      refreshRecipeList();
+      return;
+    }
+
     handleRecipeFieldChange(event.target);
   });
 
@@ -342,6 +567,44 @@ function bindRecipeListeners() {
   });
 
   document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-start-recipe]")) {
+      startNewRecipe();
+      return;
+    }
+
+    if (event.target.closest("[data-back-to-recipes]")) {
+      recipeMode = "list";
+      recipeMessage = "";
+      recipeMessageIsError = false;
+      window.render();
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit-recipe]");
+    if (editButton) {
+      loadRecipeForEditing(editButton.dataset.editRecipe);
+      window.render();
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-recipe]");
+    if (deleteButton) {
+      openDeleteRecipeModal(deleteButton.dataset.deleteRecipe);
+      return;
+    }
+
+    const toggleButton = event.target.closest("[data-toggle-recipe]");
+    if (toggleButton) {
+      const id = toggleButton.dataset.toggleRecipe;
+      if (expandedRecipeIds.has(id)) {
+        expandedRecipeIds.delete(id);
+      } else {
+        expandedRecipeIds.add(id);
+      }
+      refreshRecipeList();
+      return;
+    }
+
     if (event.target.closest("[data-add-recipe-item]")) {
       draft.items.push({ ingredientId: "", grams: "" });
       refreshRecipeBuilder();
@@ -373,9 +636,7 @@ function bindRecipeListeners() {
     }
 
     if (event.target.closest("[data-clear-recipe]")) {
-      draft = createEmptyDraft();
-      setRecipeMessage("");
-      window.render();
+      startNewRecipe();
     }
   });
 
@@ -401,20 +662,45 @@ export function loadRecipeForEditing(id) {
     }))
   };
   setRecipeMessage("");
+  recipeMode = "builder";
 }
 
 export function renderRecipeView() {
   bindRecipeListeners();
+
+  if (recipeMode === "list") {
+    return `
+      <section class="view-header">
+        <div>
+          <h2>Recipes</h2>
+          <p class="muted">Saved meals with portion calories and raw ingredient breakdowns.</p>
+        </div>
+        <button type="button" data-start-recipe>Add</button>
+      </section>
+
+      <section class="card ingredient-toolbar">
+        <label class="search-field">
+          <span>Search recipes</span>
+          <input id="recipe-library-search" type="search" value="${escapeHtml(recipeSearchQuery)}" placeholder="Search saved meals" autocomplete="off" />
+        </label>
+        <span class="muted" id="recipe-library-count">${getFilteredRecipes().length} saved</span>
+      </section>
+
+      <div id="recipe-library-results">
+        ${renderRecipeList()}
+      </div>
+    `;
+  }
 
   const hasIngredients = getIngredients().length > 0;
 
   return `
     <section class="view-header">
       <div>
-        <h2>Recipe Builder</h2>
+        <h2>${draft.id ? "Edit Recipe" : "Add Recipe"}</h2>
         <p class="muted">Build meals from raw ingredient weights and calculate portions.</p>
       </div>
-      <button type="button" class="secondary" data-clear-recipe>New</button>
+      <button type="button" class="secondary" data-back-to-recipes>Back</button>
     </section>
 
     ${hasIngredients ? "" : `

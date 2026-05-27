@@ -3,7 +3,6 @@ import { loadData, clearData } from "./core/store.js";
 
 import { renderIngredientsView } from "./views/ingredientsView.js";
 import { renderRecipeView } from "./views/recipeView.js";
-import { renderSavedRecipesView } from "./views/savedRecipesView.js";
 import { renderQuickFoodsView } from "./views/quickFoodsView.js";
 import { renderCalculatorView } from "./views/calculatorView.js";
 import { renderSettingsView } from "./views/settingsView.js";
@@ -24,8 +23,7 @@ function renderNav() {
 
   const navItems = [
     ["ingredients", "Ingredients"],
-    ["recipe", "Recipe"],
-    ["saved", "Saved"],
+    ["recipe", "Recipes"],
     ["quick", "Quick"],
     ["calculator", "Calc"],
     ["settings", "Settings"]
@@ -67,7 +65,6 @@ window.render = function render() {
 
   if (currentView === "ingredients") viewHTML = renderIngredientsView();
   if (currentView === "recipe") viewHTML = renderRecipeView();
-  if (currentView === "saved") viewHTML = renderSavedRecipesView();
   if (currentView === "quick") viewHTML = renderQuickFoodsView();
   if (currentView === "calculator") viewHTML = renderCalculatorView();
   if (currentView === "settings") viewHTML = renderSettingsView(currentUser);
