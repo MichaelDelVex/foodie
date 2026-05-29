@@ -39,7 +39,10 @@ export function showModal({ title, content, actions = [], onClose }) {
 
   const runAction = (index) => {
     const action = actions[index];
-    if (!action?.onClick) return;
+    if (!action?.onClick) {
+      closeModal();
+      return;
+    }
 
     Promise.resolve(action.onClick()).then((shouldClose) => {
       if (shouldClose !== false) closeModal();

@@ -53,15 +53,6 @@ function getRecipeCaloriesPerPortion(recipe) {
   return calculatePerPortion(totals, recipe.portions).calories;
 }
 
-function getRecipeProteinPerPortion(recipe) {
-  if (Number.isFinite(Number(recipe.proteinPerPortion))) {
-    return Number(recipe.proteinPerPortion);
-  }
-
-  const totals = calculateRecipeNutrition(recipe, getIngredients());
-  return calculatePerPortion(totals, recipe.portions).protein;
-}
-
 function getIngredient(ingredientId) {
   const ingredient = getIngredients().find((candidate) => candidate.id === ingredientId);
   return ingredient;
@@ -235,23 +226,27 @@ function getScratchRecipeIngredientAmount(item, ingredient) {
 }
 
 function getScratchRecipeConversions() {
-  return scratchItems.filter((item) => item.type !== "ingredient");
+  return scratchItems.filter((item) => item.type === "manual");
+}
+
+function getScratchRecipeSkippedItems() {
+  return scratchItems.filter((item) => item.type === "quickFood" || item.type === "recipe");
 }
 
 function getConversionSummary(item) {
-  if (item.type === "recipe") {
-    const recipe = getRecipes().find((candidate) => candidate.id === item.id);
-    return `${recipe?.name || "Missing recipe"} · per portion`;
-  }
-
-  if (item.type === "quickFood") {
-    const food = getQuickFoods().find((candidate) => candidate.id === item.id);
-    return `${food ? getQuickFoodTitle(food) : "Missing quick food"} · per ${food ? getQuickFoodServes(food) : "serve"}`;
-  }
-
   if (item.manualBasis === "weight") return `${item.title || "Manual item"} · per 100g`;
   if (item.manualBasis === "each") return `${item.title || "Manual item"} · per ${item.unitLabel || "item"}`;
   return `${item.title || "Manual item"} · per serve`;
+}
+
+function getSkippedSummary(item) {
+  if (item.type === "recipe") {
+    const recipe = getRecipes().find((candidate) => candidate.id === item.id);
+    return `${recipe?.name || "Missing recipe"} · saved recipe`;
+  }
+
+  const food = getQuickFoods().find((candidate) => candidate.id === item.id);
+  return `${food ? getQuickFoodTitle(food) : "Missing quick food"} · quick food`;
 }
 
 function buildIngredientFromScratchItem(item) {
@@ -260,35 +255,6 @@ function buildIngredientFromScratchItem(item) {
     category: "Other",
     notes: item.notes || "Created from Scratch Pad while saving a recipe."
   };
-
-  if (item.type === "recipe") {
-    const recipe = getRecipes().find((candidate) => candidate.id === item.id);
-    return {
-      ...base,
-      name: recipe?.name || base.name,
-      measureType: "each",
-      eachLabel: "portion",
-      caloriesPerEach: Number(getRecipeCaloriesPerPortion(recipe || {}).toFixed(1)),
-      proteinPerEach: Number(getRecipeProteinPerPortion(recipe || {}).toFixed(1)),
-      caloriesPer100g: null,
-      proteinPer100g: null
-    };
-  }
-
-  if (item.type === "quickFood") {
-    const food = getQuickFoods().find((candidate) => candidate.id === item.id);
-    return {
-      ...base,
-      name: food ? getQuickFoodTitle(food) : base.name,
-      measureType: "each",
-      eachLabel: food ? getQuickFoodServes(food) : "serve",
-      caloriesPerEach: Number(getQuickFoodCalories(food).toFixed(1)),
-      proteinPerEach: 0,
-      caloriesPer100g: null,
-      proteinPer100g: null,
-      notes: food?.notes || base.notes
-    };
-  }
 
   if (item.manualBasis === "weight") {
     return {
@@ -337,19 +303,25 @@ function getRecipeItemForConvertedScratchItem(item, ingredientId) {
 
 function renderScratchRecipeConversionList() {
   const conversions = getScratchRecipeConversions();
-  if (!conversions.length) {
-    return `<p class="muted">All Scratch Pad items are already saved ingredients.</p>`;
-  }
+  const skippedItems = getScratchRecipeSkippedItems();
 
   return `
     <div class="conversion-list">
-      <p class="muted">These items will be added to Ingredients first, then used in the recipe.</p>
+      ${conversions.length ? `<p class="muted">Manual items will be added to Ingredients first, then used in the recipe.</p>` : ""}
       ${conversions.map((item) => `
         <div class="conversion-row">
           <span>${escapeHtml(getConversionSummary(item))}</span>
           <strong>${formatMacro(getScratchItemCalories(item))} cal</strong>
         </div>
       `).join("")}
+      ${skippedItems.length ? `<p class="muted">Quick foods and saved recipes stay separate, so they will not be added to this recipe.</p>` : ""}
+      ${skippedItems.map((item) => `
+        <div class="conversion-row muted-row">
+          <span>${escapeHtml(getSkippedSummary(item))}</span>
+          <strong>Skipped</strong>
+        </div>
+      `).join("")}
+      ${!conversions.length && !skippedItems.length ? `<p class="muted">All Scratch Pad items are already saved ingredients.</p>` : ""}
     </div>
   `;
 }
@@ -411,8 +383,10 @@ function openSaveScratchRecipeModal() {
                 continue;
               }
 
-              const ingredient = await addIngredient(buildIngredientFromScratchItem(item));
-              recipeItems.push(getRecipeItemForConvertedScratchItem(item, ingredient.id));
+              if (item.type === "manual") {
+                const ingredient = await addIngredient(buildIngredientFromScratchItem(item));
+                recipeItems.push(getRecipeItemForConvertedScratchItem(item, ingredient.id));
+              }
             }
 
             if (!recipeItems.length) {
@@ -459,7 +433,6 @@ function renderScratchItems() {
     return `
       <div class="empty-state compact-empty">
         <h3>No items yet</h3>
-        <p class="muted">Add ingredients, recipes, quick foods, or manual calories as you go.</p>
       </div>
     `;
   }
