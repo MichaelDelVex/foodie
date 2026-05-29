@@ -138,7 +138,7 @@ function renderIngredientForm(ingredient) {
       <p class="form-error" id="ingredient-form-error" aria-live="polite"></p>
 
       <label>
-        <span>Name</span>
+        <span>Ingredient name</span>
         <input id="ingredient-name" type="text" value="${escapeHtml(ingredient?.name)}" placeholder="Chicken breast" autocomplete="off" />
       </label>
 
@@ -160,26 +160,27 @@ function renderIngredientForm(ingredient) {
       </div>
 
       <label id="ingredient-each-label-wrap" class="${measureType === "each" ? "" : "is-hidden"}">
-        <span>Item label</span>
+        <span>Individual unit name</span>
         <input id="ingredient-each-label" type="text" value="${escapeHtml(unitLabel === "item" ? "" : unitLabel)}" placeholder="egg, tomato, banana" autocomplete="off" />
       </label>
 
-      <div class="form-grid">
-        <label>
-          <span>Energy input</span>
-          <select id="ingredient-energy-unit" data-current-unit="cal">
-            <option value="cal" selected>Calories</option>
-            <option value="kj">kJ</option>
-          </select>
-        </label>
+      <div>
+        <div>
+          <span class="field-label">Energy input</span>
+          <input id="ingredient-energy-unit" type="hidden" value="cal" data-current-unit="cal" />
+          <div class="segmented-control" role="group" aria-label="Energy input">
+            <button type="button" class="active" data-ingredient-energy-option="cal" aria-pressed="true">Calories</button>
+            <button type="button" data-ingredient-energy-option="kj" aria-pressed="false">kJ</button>
+          </div>
+        </div>
+      </div>
 
+      <div class="form-grid compact-nutrition-grid">
         <label>
           <span id="ingredient-calories-label">${measureType === "each" ? "Calories per item" : "Calories per 100g"}</span>
           <input id="ingredient-calories" type="number" min="0" step="0.1" value="${escapeHtml(calories)}" placeholder="${measureType === "each" ? "70" : "165"}" />
         </label>
-      </div>
 
-      <div class="form-grid">
         <label>
           <span id="ingredient-protein-label">${measureType === "each" ? "Protein per item" : "Protein per 100g"}</span>
           <input id="ingredient-protein" type="number" min="0" step="0.1" value="${escapeHtml(protein)}" placeholder="${measureType === "each" ? "6" : "31"}" />
@@ -376,6 +377,7 @@ function bindIngredientListeners() {
 
   document.addEventListener("click", (event) => {
     const measureButton = event.target.closest("[data-measure-option]");
+    const energyButton = event.target.closest("[data-ingredient-energy-option]");
     const addButton = event.target.closest("[data-add-ingredient]");
     const editButton = event.target.closest("[data-edit-ingredient]");
     const deleteButton = event.target.closest("[data-delete-ingredient]");
@@ -393,6 +395,20 @@ function bindIngredientListeners() {
       return;
     }
 
+    if (energyButton) {
+      const energyInput = document.getElementById("ingredient-energy-unit");
+      const wrapper = energyButton.closest(".segmented-control");
+      if (energyInput) energyInput.value = energyButton.dataset.ingredientEnergyOption;
+      wrapper?.querySelectorAll("[data-ingredient-energy-option]").forEach((button) => {
+        const isActive = button === energyButton;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+      convertIngredientEnergyInput();
+      refreshIngredientMeasureFields();
+      return;
+    }
+
     if (addButton) openIngredientModal();
     if (editButton) openIngredientModal(editButton.dataset.editIngredient);
     if (deleteButton) openDeleteModal(deleteButton.dataset.deleteIngredient);
@@ -405,11 +421,6 @@ function bindIngredientListeners() {
   });
 
   document.addEventListener("change", (event) => {
-    if (event.target.id === "ingredient-energy-unit") {
-      convertIngredientEnergyInput();
-      refreshIngredientMeasureFields();
-    }
-
     if (event.target.id === "ingredient-measure-type") refreshIngredientMeasureFields();
   });
 }

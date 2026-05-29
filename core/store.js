@@ -87,6 +87,11 @@ export async function addIngredient(ingredient) {
     id: ref.id,
     ...savedIngredient
   });
+
+  return {
+    id: ref.id,
+    ...savedIngredient
+  };
 }
 
 export async function updateIngredient(id, updated) {
@@ -155,6 +160,11 @@ export async function addRecipe(recipe) {
     id: ref.id,
     ...savedRecipe
   });
+
+  return {
+    id: ref.id,
+    ...savedRecipe
+  };
 }
 
 export async function updateRecipe(id, updated) {

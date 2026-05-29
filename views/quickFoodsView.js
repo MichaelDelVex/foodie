@@ -25,6 +25,18 @@ function formatNumber(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
+function convertEnergyToCalories(value, unit) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return NaN;
+  return unit === "kj" ? number / 4.2 : number;
+}
+
+function formatEnergyInput(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return Number(number.toFixed(1)).toString();
+}
+
 function getFoodTitle(food) {
   return food?.title || food?.name || "";
 }
@@ -64,7 +76,8 @@ function setFormError(message) {
 function normalizeQuickFoodForm() {
   const title = document.getElementById("quick-food-title").value.trim();
   const notes = document.getElementById("quick-food-notes").value.trim();
-  const calories = Number(document.getElementById("quick-food-calories").value);
+  const energyUnit = document.getElementById("quick-food-energy-unit").value === "kj" ? "kj" : "cal";
+  const calories = convertEnergyToCalories(document.getElementById("quick-food-calories").value, energyUnit);
   const serves = document.getElementById("quick-food-serves").value.trim();
 
   if (!title) return { error: "Add a title." };
@@ -77,7 +90,7 @@ function normalizeQuickFoodForm() {
     value: {
       title,
       notes,
-      calories,
+      calories: Number(calories.toFixed(1)),
       serves
     }
   };
@@ -99,11 +112,22 @@ function renderQuickFoodForm(food) {
       </label>
 
       <div class="form-grid">
+        <div>
+          <span class="field-label">Energy input</span>
+          <input id="quick-food-energy-unit" type="hidden" value="cal" data-current-unit="cal" />
+          <div class="segmented-control" role="group" aria-label="Energy input">
+            <button type="button" class="active" data-quick-food-energy-option="cal" aria-pressed="true">Calories</button>
+            <button type="button" data-quick-food-energy-option="kj" aria-pressed="false">kJ</button>
+          </div>
+        </div>
+
         <label>
-          <span>Calories</span>
+          <span id="quick-food-calories-label">Calories</span>
           <input id="quick-food-calories" type="number" min="0" step="1" value="${escapeHtml(getFoodCalories(food))}" placeholder="650" />
         </label>
+      </div>
 
+      <div class="form-grid">
         <label>
           <span>Serves</span>
           <input id="quick-food-serves" type="text" value="${escapeHtml(getFoodServes(food))}" placeholder="1 wrap" autocomplete="off" />
@@ -111,6 +135,31 @@ function renderQuickFoodForm(food) {
       </div>
     </form>
   `;
+}
+
+function refreshQuickFoodEnergyFields() {
+  const energyUnit = document.getElementById("quick-food-energy-unit")?.value === "kj" ? "kJ" : "Calories";
+  const label = document.getElementById("quick-food-calories-label");
+  const input = document.getElementById("quick-food-calories");
+
+  if (label) label.textContent = energyUnit;
+  if (input) input.placeholder = energyUnit === "kJ" ? "2730" : "650";
+}
+
+function convertQuickFoodEnergyInput() {
+  const unitInput = document.getElementById("quick-food-energy-unit");
+  const caloriesInput = document.getElementById("quick-food-calories");
+  if (!unitInput || !caloriesInput) return;
+
+  const previousUnit = unitInput.dataset.currentUnit || "cal";
+  const nextUnit = unitInput.value === "kj" ? "kj" : "cal";
+  const currentValue = Number(caloriesInput.value);
+
+  if (previousUnit !== nextUnit && Number.isFinite(currentValue) && currentValue >= 0) {
+    caloriesInput.value = formatEnergyInput(nextUnit === "kj" ? currentValue * 4.2 : currentValue / 4.2);
+  }
+
+  unitInput.dataset.currentUnit = nextUnit;
 }
 
 function openQuickFoodModal(id) {
@@ -242,9 +291,24 @@ function bindQuickFoodListeners() {
   listenersBound = true;
 
   document.addEventListener("click", (event) => {
+    const energyButton = event.target.closest("[data-quick-food-energy-option]");
     const addButton = event.target.closest("[data-add-quick-food]");
     const editButton = event.target.closest("[data-edit-quick-food]");
     const deleteButton = event.target.closest("[data-delete-quick-food]");
+
+    if (energyButton) {
+      const energyInput = document.getElementById("quick-food-energy-unit");
+      const wrapper = energyButton.closest(".segmented-control");
+      if (energyInput) energyInput.value = energyButton.dataset.quickFoodEnergyOption;
+      wrapper?.querySelectorAll("[data-quick-food-energy-option]").forEach((button) => {
+        const isActive = button === energyButton;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+      convertQuickFoodEnergyInput();
+      refreshQuickFoodEnergyFields();
+      return;
+    }
 
     if (addButton) openQuickFoodModal();
     if (editButton) openQuickFoodModal(editButton.dataset.editQuickFood);
