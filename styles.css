@@ -386,6 +386,11 @@ button.small-button,
   min-height: 42px;
 }
 
+.scratch-save-recipe-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
 .conversion-list {
   display: grid;
   gap: 8px;

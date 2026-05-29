@@ -490,14 +490,24 @@ function renderScratchTotal() {
   `;
 }
 
+function renderSaveScratchRecipeAction() {
+  if (scratchItems.length < 2) return "";
+
+  return `
+    <button type="button" class="secondary scratch-save-recipe-button" data-save-scratch-recipe>
+      Save Recipe
+    </button>
+  `;
+}
+
 function refreshScratchItems() {
   const items = document.getElementById("scratch-items");
   const total = document.getElementById("scratch-total");
-  const saveButton = document.querySelector("[data-save-scratch-recipe]");
+  const saveAction = document.getElementById("scratch-save-recipe-action");
 
   if (items) items.innerHTML = renderScratchItems();
   if (total) total.innerHTML = renderScratchTotal();
-  if (saveButton) saveButton.disabled = scratchItems.length === 0;
+  if (saveAction) saveAction.innerHTML = renderSaveScratchRecipeAction();
 }
 
 function refreshScratchCalories(index) {
@@ -1190,7 +1200,6 @@ export function renderCalculatorView() {
       <button type="button" class="secondary small-button" data-open-scratch-picker="recipe">Recipe</button>
       <button type="button" class="secondary small-button" data-open-scratch-picker="quickFood">Quick Food</button>
       <button type="button" class="secondary small-button" data-add-manual-calories>Manual</button>
-      <button type="button" class="secondary small-button" data-save-scratch-recipe ${scratchItems.length ? "" : "disabled"}>Save Recipe</button>
     </section>
 
     <section class="card">
@@ -1199,6 +1208,9 @@ export function renderCalculatorView() {
       </div>
       <div id="scratch-items">
         ${renderScratchItems()}
+      </div>
+      <div id="scratch-save-recipe-action">
+        ${renderSaveScratchRecipeAction()}
       </div>
     </section>
 
