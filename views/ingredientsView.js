@@ -18,6 +18,7 @@ const CATEGORIES = [
   "Dairy",
   "Deli",
   "Vegetables",
+  "Fruit",
   "Carbs",
   "Sauces",
   "Oils",
@@ -44,11 +45,24 @@ function formatNumber(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
+function convertEnergyToCalories(value, unit) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return NaN;
+  return unit === "kj" ? number / 4.2 : number;
+}
+
+function formatEnergyInput(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return Number(number.toFixed(1)).toString();
+}
+
 function normalizeIngredientForm() {
   const name = document.getElementById("ingredient-name").value.trim();
   const category = document.getElementById("ingredient-category").value;
   const measureType = document.getElementById("ingredient-measure-type").value === "each" ? "each" : "weight";
-  const calories = Number(document.getElementById("ingredient-calories").value);
+  const energyUnit = document.getElementById("ingredient-energy-unit").value === "kj" ? "kj" : "cal";
+  const calories = convertEnergyToCalories(document.getElementById("ingredient-calories").value, energyUnit);
   const protein = Number(document.getElementById("ingredient-protein").value);
   const eachLabel = document.getElementById("ingredient-each-label").value.trim();
   const notes = document.getElementById("ingredient-notes").value.trim();
@@ -68,10 +82,10 @@ function normalizeIngredientForm() {
       name,
       category,
       measureType,
-      caloriesPer100g: measureType === "weight" ? calories : null,
+      caloriesPer100g: measureType === "weight" ? Number(calories.toFixed(1)) : null,
       proteinPer100g: measureType === "weight" ? protein : null,
       eachLabel: measureType === "each" ? eachLabel : "",
-      caloriesPerEach: measureType === "each" ? calories : null,
+      caloriesPerEach: measureType === "each" ? Number(calories.toFixed(1)) : null,
       proteinPerEach: measureType === "each" ? protein : null,
       notes
     }
@@ -136,13 +150,14 @@ function renderIngredientForm(ingredient) {
         </select>
       </label>
 
-      <label>
-        <span>Nutrition basis</span>
-        <select id="ingredient-measure-type">
-          <option value="weight" ${measureType === "weight" ? "selected" : ""}>Per 100g</option>
-          <option value="each" ${measureType === "each" ? "selected" : ""}>Per item</option>
-        </select>
-      </label>
+      <div>
+        <span class="field-label">Nutrition basis</span>
+        <input id="ingredient-measure-type" type="hidden" value="${measureType}" />
+        <div class="segmented-control" role="group" aria-label="Nutrition basis">
+          <button type="button" class="${measureType === "weight" ? "active" : ""}" data-measure-option="weight" aria-pressed="${measureType === "weight"}">Per 100g</button>
+          <button type="button" class="${measureType === "each" ? "active" : ""}" data-measure-option="each" aria-pressed="${measureType === "each"}">Per item</button>
+        </div>
+      </div>
 
       <label id="ingredient-each-label-wrap" class="${measureType === "each" ? "" : "is-hidden"}">
         <span>Item label</span>
@@ -151,10 +166,20 @@ function renderIngredientForm(ingredient) {
 
       <div class="form-grid">
         <label>
+          <span>Energy input</span>
+          <select id="ingredient-energy-unit" data-current-unit="cal">
+            <option value="cal" selected>Calories</option>
+            <option value="kj">kJ</option>
+          </select>
+        </label>
+
+        <label>
           <span id="ingredient-calories-label">${measureType === "each" ? "Calories per item" : "Calories per 100g"}</span>
           <input id="ingredient-calories" type="number" min="0" step="0.1" value="${escapeHtml(calories)}" placeholder="${measureType === "each" ? "70" : "165"}" />
         </label>
+      </div>
 
+      <div class="form-grid">
         <label>
           <span id="ingredient-protein-label">${measureType === "each" ? "Protein per item" : "Protein per 100g"}</span>
           <input id="ingredient-protein" type="number" min="0" step="0.1" value="${escapeHtml(protein)}" placeholder="${measureType === "each" ? "6" : "31"}" />
@@ -214,13 +239,34 @@ function openIngredientModal(id) {
 
 function refreshIngredientMeasureFields() {
   const measureType = document.getElementById("ingredient-measure-type")?.value === "each" ? "each" : "weight";
+  const energyUnit = document.getElementById("ingredient-energy-unit")?.value === "kj" ? "kJ" : "Calories";
   const itemLabel = document.getElementById("ingredient-each-label-wrap");
   const caloriesLabel = document.getElementById("ingredient-calories-label");
   const proteinLabel = document.getElementById("ingredient-protein-label");
+  const caloriesInput = document.getElementById("ingredient-calories");
 
   if (itemLabel) itemLabel.classList.toggle("is-hidden", measureType !== "each");
-  if (caloriesLabel) caloriesLabel.textContent = measureType === "each" ? "Calories per item" : "Calories per 100g";
+  if (caloriesLabel) caloriesLabel.textContent = measureType === "each" ? `${energyUnit} per item` : `${energyUnit} per 100g`;
   if (proteinLabel) proteinLabel.textContent = measureType === "each" ? "Protein per item" : "Protein per 100g";
+  if (caloriesInput) caloriesInput.placeholder = document.getElementById("ingredient-energy-unit")?.value === "kj"
+    ? (measureType === "each" ? "294" : "693")
+    : (measureType === "each" ? "70" : "165");
+}
+
+function convertIngredientEnergyInput() {
+  const unitSelect = document.getElementById("ingredient-energy-unit");
+  const caloriesInput = document.getElementById("ingredient-calories");
+  if (!unitSelect || !caloriesInput) return;
+
+  const previousUnit = unitSelect.dataset.currentUnit || "cal";
+  const nextUnit = unitSelect.value === "kj" ? "kj" : "cal";
+  const currentValue = Number(caloriesInput.value);
+
+  if (previousUnit !== nextUnit && Number.isFinite(currentValue) && currentValue >= 0) {
+    caloriesInput.value = formatEnergyInput(nextUnit === "kj" ? currentValue * 4.2 : currentValue / 4.2);
+  }
+
+  unitSelect.dataset.currentUnit = nextUnit;
 }
 
 function getIngredientMacroText(ingredient) {
@@ -329,9 +375,23 @@ function bindIngredientListeners() {
   listenersBound = true;
 
   document.addEventListener("click", (event) => {
+    const measureButton = event.target.closest("[data-measure-option]");
     const addButton = event.target.closest("[data-add-ingredient]");
     const editButton = event.target.closest("[data-edit-ingredient]");
     const deleteButton = event.target.closest("[data-delete-ingredient]");
+
+    if (measureButton) {
+      const measureTypeInput = document.getElementById("ingredient-measure-type");
+      const wrapper = measureButton.closest(".segmented-control");
+      if (measureTypeInput) measureTypeInput.value = measureButton.dataset.measureOption;
+      wrapper?.querySelectorAll("[data-measure-option]").forEach((button) => {
+        const isActive = button === measureButton;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+      refreshIngredientMeasureFields();
+      return;
+    }
 
     if (addButton) openIngredientModal();
     if (editButton) openIngredientModal(editButton.dataset.editIngredient);
@@ -345,6 +405,11 @@ function bindIngredientListeners() {
   });
 
   document.addEventListener("change", (event) => {
+    if (event.target.id === "ingredient-energy-unit") {
+      convertIngredientEnergyInput();
+      refreshIngredientMeasureFields();
+    }
+
     if (event.target.id === "ingredient-measure-type") refreshIngredientMeasureFields();
   });
 }
