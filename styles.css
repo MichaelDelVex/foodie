@@ -183,6 +183,10 @@ button.small-button,
   font-size: 13px;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
 .list {
   display: grid;
   gap: 10px;

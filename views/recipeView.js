@@ -7,9 +7,14 @@ import {
   updateRecipe
 } from "../core/store.js";
 import {
+  calculateIngredientItemNutrition,
   calculatePerPortion,
   calculateRecipeNutrition,
-  formatMacro
+  formatMacro,
+  getIngredientCaloriesPerUnit,
+  getIngredientMeasureType,
+  getIngredientProteinPerUnit,
+  getIngredientUnitLabel
 } from "../core/nutrition.js";
 import { closeModal, showModal } from "../core/modal.js";
 
@@ -47,12 +52,28 @@ function cleanDraft() {
     name: draft.name.trim(),
     portions: Math.max(Number(draft.portions) || 1, 1),
     items: draft.items
-      .filter((item) => item.ingredientId && Number(item.grams) > 0)
-      .map((item) => ({
-        ingredientId: item.ingredientId,
-        grams: Number(item.grams)
-      }))
+      .map(normalizeRecipeItem)
+      .filter(Boolean)
   };
+}
+
+function getIngredient(ingredientId) {
+  return getIngredients().find((i) => i.id === ingredientId);
+}
+
+function normalizeRecipeItem(item) {
+  const ingredient = getIngredient(item.ingredientId);
+  if (!ingredient) return null;
+
+  if (getIngredientMeasureType(ingredient) === "each") {
+    const quantity = Number(item.quantity) || 0;
+    if (quantity <= 0) return null;
+    return { ingredientId: item.ingredientId, quantity };
+  }
+
+  const grams = Number(item.grams) || 0;
+  if (grams <= 0) return null;
+  return { ingredientId: item.ingredientId, grams };
 }
 
 function getDraftNutrition() {
@@ -64,30 +85,66 @@ function getDraftNutrition() {
 }
 
 function getIngredientName(item) {
-  const ingredient = getIngredients().find((i) => i.id === item.ingredientId);
+  const ingredient = getIngredient(item.ingredientId);
   return ingredient?.name || "";
 }
 
-function getIngredientCaloriesPer100g(ingredientId) {
-  const ingredient = getIngredients().find((i) => i.id === ingredientId);
-  return Number(ingredient?.caloriesPer100g) || 0;
+function getCaloriesFromAmount(ingredientId, amount) {
+  const ingredient = getIngredient(ingredientId);
+  if (!ingredient) return 0;
+
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return getIngredientCaloriesPerUnit(ingredient) * (Number(amount) || 0);
+  }
+
+  return getIngredientCaloriesPerUnit(ingredient) * (Number(amount) || 0) / 100;
 }
 
-function getCaloriesFromGrams(ingredientId, grams) {
-  const caloriesPer100g = getIngredientCaloriesPer100g(ingredientId);
-  return caloriesPer100g * (Number(grams) || 0) / 100;
-}
+function getAmountFromCalories(ingredientId, calories) {
+  const ingredient = getIngredient(ingredientId);
+  const caloriesPerUnit = getIngredientCaloriesPerUnit(ingredient);
+  if (!ingredient || caloriesPerUnit <= 0) return "";
 
-function getGramsFromCalories(ingredientId, calories) {
-  const caloriesPer100g = getIngredientCaloriesPer100g(ingredientId);
-  if (caloriesPer100g <= 0) return "";
-  return (Number(calories) || 0) * 100 / caloriesPer100g;
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return (Number(calories) || 0) / caloriesPerUnit;
+  }
+
+  return (Number(calories) || 0) * 100 / caloriesPerUnit;
 }
 
 function formatInputNumber(value, decimals = 1) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) return "";
   return Number(number.toFixed(decimals)).toString();
+}
+
+function formatAmount(value, decimals = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0";
+  return Number(number.toFixed(decimals)).toString();
+}
+
+function getRecipeItemAmount(item, ingredient) {
+  return getIngredientMeasureType(ingredient) === "each"
+    ? Number(item.quantity) || 0
+    : Number(item.grams) || 0;
+}
+
+function getRecipeItemAmountLabel(item, ingredient) {
+  const amount = getRecipeItemAmount(item, ingredient);
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return amount > 0 ? `${formatAmount(amount, 2)} ${getIngredientUnitLabel(ingredient)}` : "Add quantity";
+  }
+
+  return amount > 0 ? `${formatAmount(amount, 1)}g raw` : "Add grams";
+}
+
+function getIngredientMacroText(ingredient) {
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return `${formatMacro(getIngredientCaloriesPerUnit(ingredient))} cal / ${getIngredientUnitLabel(ingredient)} · ${formatMacro(getIngredientProteinPerUnit(ingredient), 1)}g protein`;
+  }
+
+  return `${formatMacro(getIngredientCaloriesPerUnit(ingredient))} cal / 100g · ${formatMacro(getIngredientProteinPerUnit(ingredient), 1)}g protein`;
 }
 
 function getIngredientPickerResults(query = "") {
@@ -124,15 +181,15 @@ function renderIngredientPickerResults(query = "") {
         <small>${escapeHtml(ingredient.category || "Other")}</small>
       </span>
       <span class="picker-macros">
-        ${formatMacro(ingredient.caloriesPer100g)} cal
-        <small>${formatMacro(ingredient.proteinPer100g, 1)}g protein</small>
+        ${formatMacro(getIngredientCaloriesPerUnit(ingredient))} cal
+        <small>${escapeHtml(getIngredientMeasureType(ingredient) === "each" ? getIngredientUnitLabel(ingredient) : "100g")} · ${formatMacro(getIngredientProteinPerUnit(ingredient), 1)}g protein</small>
       </span>
     </button>
   `).join("");
 }
 
 function renderItemSummary(item) {
-  const ingredient = getIngredients().find((i) => i.id === item.ingredientId);
+  const ingredient = getIngredient(item.ingredientId);
   const itemNutrition = calculateRecipeNutrition({ items: [item] }, getIngredients());
 
   return `
@@ -143,14 +200,14 @@ function renderItemSummary(item) {
 }
 
 function renderRecipeItemCard(item, index) {
-  const ingredient = getIngredients().find((i) => i.id === item.ingredientId);
+  const ingredient = getIngredient(item.ingredientId);
   const itemNutrition = calculateRecipeNutrition({ items: [item] }, getIngredients());
 
   return `
     <button type="button" class="recipe-builder-card" data-edit-recipe-item="${index}">
       <span>
         <strong>${escapeHtml(ingredient?.name || "Missing ingredient")}</strong>
-        <small>${formatMacro(Number(item.grams) || 0)}g raw · ${formatMacro(itemNutrition.calories)} cal · ${formatMacro(itemNutrition.protein, 1)}g protein</small>
+        <small>${escapeHtml(ingredient ? getRecipeItemAmountLabel(item, ingredient) : "Missing amount")} · ${formatMacro(itemNutrition.calories)} cal · ${formatMacro(itemNutrition.protein, 1)}g protein</small>
       </span>
       <span class="recipe-card-chevron">›</span>
     </button>
@@ -162,7 +219,7 @@ function renderRecipeItems() {
     return `
       <div class="empty-state compact-empty">
         <h3>No ingredients added</h3>
-        <p class="muted">Add raw ingredients and enter the grams used in the full recipe.</p>
+        <p class="muted">Add ingredients by grams or item quantity for the full recipe.</p>
       </div>
     `;
   }
@@ -218,14 +275,14 @@ function getFilteredRecipes() {
 
 function getRecipeIngredientLines(recipe) {
   return (recipe.items || []).map((item) => {
-    const ingredient = getIngredients().find((candidate) => candidate.id === item.ingredientId);
+    const ingredient = getIngredient(item.ingredientId);
     const name = ingredient?.name || "Missing ingredient";
-    const calories = getCaloriesFromGrams(item.ingredientId, item.grams);
+    const itemNutrition = calculateIngredientItemNutrition(item, ingredient);
 
     return {
       name,
-      grams: Number(item.grams) || 0,
-      calories
+      amount: ingredient ? getRecipeItemAmountLabel(item, ingredient) : "Missing amount",
+      calories: itemNutrition.calories
     };
   });
 }
@@ -250,7 +307,7 @@ function renderRecipeIngredientList(recipe) {
       ${lines.map((line) => `
         <li>
           <span>${escapeHtml(line.name)}</span>
-          <strong>${formatMacro(line.grams)}g · ${formatMacro(line.calories)} cal</strong>
+          <strong>${escapeHtml(line.amount)} · ${formatMacro(line.calories)} cal</strong>
         </li>
       `).join("")}
     </ul>
@@ -366,8 +423,10 @@ function renderIngredientEditorResults(query = "") {
 }
 
 function renderIngredientEditorContent(query = "") {
-  const ingredient = getIngredients().find((i) => i.id === modalRecipeItem?.ingredientId);
-  const calories = getCaloriesFromGrams(modalRecipeItem?.ingredientId, modalRecipeItem?.grams);
+  const ingredient = getIngredient(modalRecipeItem?.ingredientId);
+  const isEach = getIngredientMeasureType(ingredient) === "each";
+  const amount = isEach ? modalRecipeItem?.quantity : modalRecipeItem?.grams;
+  const calories = getCaloriesFromAmount(modalRecipeItem?.ingredientId, amount);
 
   return `
     <div class="stack">
@@ -376,13 +435,13 @@ function renderIngredientEditorContent(query = "") {
       <div class="selected-ingredient">
         <span class="muted">Selected ingredient</span>
         <strong>${escapeHtml(ingredient?.name || "None selected")}</strong>
-        ${ingredient ? `<small>${formatMacro(ingredient.caloriesPer100g)} cal / 100g · ${formatMacro(ingredient.proteinPer100g, 1)}g protein</small>` : `<small>Search and tap an ingredient below.</small>`}
+        ${ingredient ? `<small>${escapeHtml(getIngredientMacroText(ingredient))}</small>` : `<small>Search and tap an ingredient below.</small>`}
       </div>
 
       <div class="form-grid">
         <label>
-          <span>Raw grams</span>
-          <input id="recipe-editor-grams" type="number" min="0" step="1" value="${escapeHtml(modalRecipeItem?.grams || "")}" placeholder="100" ${ingredient ? "" : "disabled"} />
+          <span>${isEach ? "Quantity" : "Raw grams"}</span>
+          <input id="recipe-editor-amount" type="number" min="0" step="${isEach ? "0.1" : "1"}" value="${escapeHtml(amount || "")}" placeholder="${isEach ? "1.5" : "100"}" ${ingredient ? "" : "disabled"} />
         </label>
 
         <label>
@@ -411,7 +470,7 @@ function refreshIngredientEditor(query = "") {
 function openRecipeItemModal(index = null) {
   activeRecipeItemIndex = index;
   modalRecipeItem = index === null
-    ? { ingredientId: "", grams: "" }
+    ? { ingredientId: "", grams: "", quantity: "" }
     : { ...draft.items[index] };
 
   showModal({
@@ -432,18 +491,19 @@ function openRecipeItemModal(index = null) {
       {
         label: index === null ? "Add" : "Update",
         onClick: () => {
-          const grams = Number(modalRecipeItem?.grams) || 0;
+          const ingredient = getIngredient(modalRecipeItem?.ingredientId);
+          const isEach = getIngredientMeasureType(ingredient) === "each";
+          const amount = Number(isEach ? modalRecipeItem?.quantity : modalRecipeItem?.grams) || 0;
           const error = document.getElementById("recipe-editor-error");
 
-          if (!modalRecipeItem?.ingredientId || grams <= 0) {
-            if (error) error.textContent = "Choose an ingredient and add grams or calories.";
+          if (!ingredient || amount <= 0) {
+            if (error) error.textContent = `Choose an ingredient and add ${isEach ? "quantity" : "grams"} or calories.`;
             return false;
           }
 
-          const nextItem = {
-            ingredientId: modalRecipeItem.ingredientId,
-            grams
-          };
+          const nextItem = isEach
+            ? { ingredientId: modalRecipeItem.ingredientId, quantity: amount }
+            : { ingredientId: modalRecipeItem.ingredientId, grams: amount };
 
           if (activeRecipeItemIndex === null) {
             draft.items.push(nextItem);
@@ -494,19 +554,22 @@ function refreshRecipePairedInput(index, field) {
   const row = document.querySelector(`[data-recipe-item="${index}"]`);
   if (!item || !row) return;
 
-  const gramsInput = row.querySelector('[data-recipe-field="grams"]');
+  const amountInput = row.querySelector('[data-recipe-field="grams"], [data-recipe-field="quantity"]');
   const caloriesInput = row.querySelector('[data-recipe-field="calories"]');
+  const ingredient = getIngredient(item.ingredientId);
+  const isEach = getIngredientMeasureType(ingredient) === "each";
+  const amountField = isEach ? "quantity" : "grams";
 
   if (caloriesInput) {
     caloriesInput.disabled = !item.ingredientId;
   }
 
-  if (field === "grams" && caloriesInput) {
-    caloriesInput.value = formatInputNumber(getCaloriesFromGrams(item.ingredientId, item.grams), 0);
+  if ((field === "grams" || field === "quantity") && caloriesInput) {
+    caloriesInput.value = formatInputNumber(getCaloriesFromAmount(item.ingredientId, item[amountField]), 0);
   }
 
-  if (field === "calories" && gramsInput) {
-    gramsInput.value = item.grams;
+  if (field === "calories" && amountInput) {
+    amountInput.value = item[amountField];
   }
 }
 
@@ -541,9 +604,11 @@ function handleRecipeFieldChange(target) {
   if (!draft.items[index]) return true;
 
   if (recipeField === "calories") {
-    draft.items[index].grams = formatInputNumber(
-      getGramsFromCalories(draft.items[index].ingredientId, target.value),
-      1
+    const ingredient = getIngredient(draft.items[index].ingredientId);
+    const amountField = getIngredientMeasureType(ingredient) === "each" ? "quantity" : "grams";
+    draft.items[index][amountField] = formatInputNumber(
+      getAmountFromCalories(draft.items[index].ingredientId, target.value),
+      getIngredientMeasureType(ingredient) === "each" ? 2 : 1
     );
   } else {
     draft.items[index][recipeField] = target.value;
@@ -606,7 +671,7 @@ async function saveDraft() {
   }
 
   if (!recipe.items.length) {
-    setRecipeMessage("Add at least one ingredient with grams.", true);
+    setRecipeMessage("Add at least one ingredient with an amount.", true);
     return;
   }
 
@@ -719,7 +784,14 @@ function bindRecipeListeners() {
     const editorIngredientButton = event.target.closest("[data-pick-editor-ingredient]");
     if (editorIngredientButton && modalRecipeItem) {
       modalRecipeItem.ingredientId = editorIngredientButton.dataset.pickEditorIngredient;
-      modalRecipeItem.grams = modalRecipeItem.grams || "";
+      const ingredient = getIngredient(modalRecipeItem.ingredientId);
+      if (getIngredientMeasureType(ingredient) === "each") {
+        modalRecipeItem.quantity = modalRecipeItem.quantity || "";
+        modalRecipeItem.grams = "";
+      } else {
+        modalRecipeItem.grams = modalRecipeItem.grams || "";
+        modalRecipeItem.quantity = "";
+      }
       refreshIngredientEditor(document.getElementById("recipe-editor-search")?.value || "");
       return;
     }
@@ -748,22 +820,27 @@ function bindRecipeListeners() {
       return;
     }
 
-    if (event.target.id === "recipe-editor-grams" && modalRecipeItem) {
-      modalRecipeItem.grams = event.target.value;
+    if (event.target.id === "recipe-editor-amount" && modalRecipeItem) {
+      const ingredient = getIngredient(modalRecipeItem.ingredientId);
+      const amountField = getIngredientMeasureType(ingredient) === "each" ? "quantity" : "grams";
+      modalRecipeItem[amountField] = event.target.value;
       const caloriesInput = document.getElementById("recipe-editor-calories");
       if (caloriesInput) {
-        caloriesInput.value = formatInputNumber(getCaloriesFromGrams(modalRecipeItem.ingredientId, modalRecipeItem.grams), 0);
+        caloriesInput.value = formatInputNumber(getCaloriesFromAmount(modalRecipeItem.ingredientId, modalRecipeItem[amountField]), 0);
       }
       return;
     }
 
     if (event.target.id === "recipe-editor-calories" && modalRecipeItem) {
-      modalRecipeItem.grams = formatInputNumber(
-        getGramsFromCalories(modalRecipeItem.ingredientId, event.target.value),
-        1
+      const ingredient = getIngredient(modalRecipeItem.ingredientId);
+      const isEach = getIngredientMeasureType(ingredient) === "each";
+      const amountField = isEach ? "quantity" : "grams";
+      modalRecipeItem[amountField] = formatInputNumber(
+        getAmountFromCalories(modalRecipeItem.ingredientId, event.target.value),
+        isEach ? 2 : 1
       );
-      const gramsInput = document.getElementById("recipe-editor-grams");
-      if (gramsInput) gramsInput.value = modalRecipeItem.grams;
+      const amountInput = document.getElementById("recipe-editor-amount");
+      if (amountInput) amountInput.value = modalRecipeItem[amountField];
       return;
     }
 
@@ -784,7 +861,8 @@ export function loadRecipeForEditing(id) {
     portions: recipe.portions || 1,
     items: (recipe.items || []).map((item) => ({
       ingredientId: item.ingredientId,
-      grams: item.grams
+      grams: item.grams,
+      quantity: item.quantity
     }))
   };
   setRecipeMessage("");
@@ -799,7 +877,7 @@ export function renderRecipeView() {
       <section class="view-header">
         <div>
           <h2>Recipes</h2>
-          <p class="muted">Saved meals with portion calories and raw ingredient breakdowns.</p>
+          <p class="muted">Saved meals with portion calories and ingredient breakdowns.</p>
         </div>
         <button type="button" data-start-recipe>Add</button>
       </section>
@@ -824,7 +902,7 @@ export function renderRecipeView() {
     <section class="view-header">
       <div>
         <h2>${draft.id ? "Edit Recipe" : "Add Recipe"}</h2>
-        <p class="muted">Build meals from raw ingredient weights and calculate portions.</p>
+        <p class="muted">Build meals from weighed ingredients or simple per-item foods.</p>
       </div>
       <button type="button" class="secondary" data-back-to-recipes>Back</button>
     </section>
@@ -832,7 +910,7 @@ export function renderRecipeView() {
     ${hasIngredients ? "" : `
       <div class="empty-state">
         <h3>Add ingredients first</h3>
-        <p class="muted">Recipes use the raw ingredient list for calories and protein per 100g.</p>
+        <p class="muted">Recipes use saved ingredients for calories and protein.</p>
       </div>
     `}
 

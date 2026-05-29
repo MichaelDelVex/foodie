@@ -6,6 +6,12 @@ import {
   updateIngredient
 } from "../core/store.js";
 import { showModal } from "../core/modal.js";
+import {
+  getIngredientCaloriesPerUnit,
+  getIngredientMeasureType,
+  getIngredientProteinPerUnit,
+  getIngredientUnitLabel
+} from "../core/nutrition.js";
 
 const CATEGORIES = [
   "Meat",
@@ -41,16 +47,19 @@ function formatNumber(value) {
 function normalizeIngredientForm() {
   const name = document.getElementById("ingredient-name").value.trim();
   const category = document.getElementById("ingredient-category").value;
-  const caloriesPer100g = Number(document.getElementById("ingredient-calories").value);
-  const proteinPer100g = Number(document.getElementById("ingredient-protein").value);
+  const measureType = document.getElementById("ingredient-measure-type").value === "each" ? "each" : "weight";
+  const calories = Number(document.getElementById("ingredient-calories").value);
+  const protein = Number(document.getElementById("ingredient-protein").value);
+  const eachLabel = document.getElementById("ingredient-each-label").value.trim();
   const notes = document.getElementById("ingredient-notes").value.trim();
 
   if (!name) return { error: "Add an ingredient name." };
   if (!category) return { error: "Choose a category." };
-  if (!Number.isFinite(caloriesPer100g) || caloriesPer100g < 0) {
+  if (measureType === "each" && !eachLabel) return { error: "Add an item label." };
+  if (!Number.isFinite(calories) || calories < 0) {
     return { error: "Calories must be zero or higher." };
   }
-  if (!Number.isFinite(proteinPer100g) || proteinPer100g < 0) {
+  if (!Number.isFinite(protein) || protein < 0) {
     return { error: "Protein must be zero or higher." };
   }
 
@@ -58,8 +67,12 @@ function normalizeIngredientForm() {
     value: {
       name,
       category,
-      caloriesPer100g,
-      proteinPer100g,
+      measureType,
+      caloriesPer100g: measureType === "weight" ? calories : null,
+      proteinPer100g: measureType === "weight" ? protein : null,
+      eachLabel: measureType === "each" ? eachLabel : "",
+      caloriesPerEach: measureType === "each" ? calories : null,
+      proteinPerEach: measureType === "each" ? protein : null,
       notes
     }
   };
@@ -101,6 +114,11 @@ function renderCategoryOptions(selectedCategory = "") {
 }
 
 function renderIngredientForm(ingredient) {
+  const measureType = getIngredientMeasureType(ingredient);
+  const calories = getIngredientCaloriesPerUnit(ingredient);
+  const protein = getIngredientProteinPerUnit(ingredient);
+  const unitLabel = getIngredientUnitLabel(ingredient);
+
   return `
     <form class="stack" id="ingredient-form">
       <p class="form-error" id="ingredient-form-error" aria-live="polite"></p>
@@ -118,15 +136,28 @@ function renderIngredientForm(ingredient) {
         </select>
       </label>
 
+      <label>
+        <span>Nutrition basis</span>
+        <select id="ingredient-measure-type">
+          <option value="weight" ${measureType === "weight" ? "selected" : ""}>Per 100g</option>
+          <option value="each" ${measureType === "each" ? "selected" : ""}>Per item</option>
+        </select>
+      </label>
+
+      <label id="ingredient-each-label-wrap" class="${measureType === "each" ? "" : "is-hidden"}">
+        <span>Item label</span>
+        <input id="ingredient-each-label" type="text" value="${escapeHtml(unitLabel === "item" ? "" : unitLabel)}" placeholder="egg, tomato, banana" autocomplete="off" />
+      </label>
+
       <div class="form-grid">
         <label>
-          <span>Calories per 100g</span>
-          <input id="ingredient-calories" type="number" min="0" step="0.1" value="${escapeHtml(ingredient?.caloriesPer100g)}" placeholder="165" />
+          <span id="ingredient-calories-label">${measureType === "each" ? "Calories per item" : "Calories per 100g"}</span>
+          <input id="ingredient-calories" type="number" min="0" step="0.1" value="${escapeHtml(calories)}" placeholder="${measureType === "each" ? "70" : "165"}" />
         </label>
 
         <label>
-          <span>Protein per 100g</span>
-          <input id="ingredient-protein" type="number" min="0" step="0.1" value="${escapeHtml(ingredient?.proteinPer100g)}" placeholder="31" />
+          <span id="ingredient-protein-label">${measureType === "each" ? "Protein per item" : "Protein per 100g"}</span>
+          <input id="ingredient-protein" type="number" min="0" step="0.1" value="${escapeHtml(protein)}" placeholder="${measureType === "each" ? "6" : "31"}" />
         </label>
       </div>
 
@@ -181,6 +212,26 @@ function openIngredientModal(id) {
   });
 }
 
+function refreshIngredientMeasureFields() {
+  const measureType = document.getElementById("ingredient-measure-type")?.value === "each" ? "each" : "weight";
+  const itemLabel = document.getElementById("ingredient-each-label-wrap");
+  const caloriesLabel = document.getElementById("ingredient-calories-label");
+  const proteinLabel = document.getElementById("ingredient-protein-label");
+
+  if (itemLabel) itemLabel.classList.toggle("is-hidden", measureType !== "each");
+  if (caloriesLabel) caloriesLabel.textContent = measureType === "each" ? "Calories per item" : "Calories per 100g";
+  if (proteinLabel) proteinLabel.textContent = measureType === "each" ? "Protein per item" : "Protein per 100g";
+}
+
+function getIngredientMacroText(ingredient) {
+  if (getIngredientMeasureType(ingredient) === "each") {
+    const unit = getIngredientUnitLabel(ingredient);
+    return `${formatNumber(ingredient.caloriesPerEach)} cal / ${unit} · ${formatNumber(ingredient.proteinPerEach)}g protein`;
+  }
+
+  return `${formatNumber(ingredient.caloriesPer100g)} cal / 100g · ${formatNumber(ingredient.proteinPer100g)}g protein`;
+}
+
 function openDeleteModal(id) {
   const ingredient = getIngredientById(id);
   if (!ingredient) return;
@@ -224,7 +275,7 @@ function renderIngredientCard(ingredient) {
 
       <div class="compact-card-meta">
         <span class="category-pill">${escapeHtml(ingredient.category || "Other")}</span>
-        <span class="compact-macros">${formatNumber(ingredient.caloriesPer100g)} cal / 100g · ${formatNumber(ingredient.proteinPer100g)}g protein</span>
+        <span class="compact-macros">${escapeHtml(getIngredientMacroText(ingredient))}</span>
       </div>
 
       ${ingredient.notes ? `<p class="ingredient-notes">${escapeHtml(ingredient.notes)}</p>` : ""}
@@ -241,7 +292,7 @@ function renderIngredientsList() {
     return `
       <div class="empty-state">
         <h3>${searchQuery ? "No matching ingredients" : "No ingredients yet"}</h3>
-        <p class="muted">${searchQuery ? "Try a different search term." : "Add raw ingredients with calories and protein per 100g."}</p>
+        <p class="muted">${searchQuery ? "Try a different search term." : "Add ingredients by weight or by item."}</p>
         ${searchQuery ? "" : `<button type="button" class="secondary small-button empty-action" data-add-ingredient>Add Ingredient</button>`}
       </div>
     `;
@@ -292,6 +343,10 @@ function bindIngredientListeners() {
     searchQuery = event.target.value;
     refreshIngredientResults();
   });
+
+  document.addEventListener("change", (event) => {
+    if (event.target.id === "ingredient-measure-type") refreshIngredientMeasureFields();
+  });
 }
 
 export function renderIngredientsView() {
@@ -301,7 +356,7 @@ export function renderIngredientsView() {
     <section class="view-header">
       <div>
         <h2>Ingredients</h2>
-        <p class="muted">Raw ingredient nutrition, stored per 100g for recipe maths.</p>
+        <p class="muted">Ingredient nutrition for weighed foods or simple per-item foods.</p>
       </div>
       <button type="button" data-add-ingredient>Add</button>
     </section>

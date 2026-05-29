@@ -1,15 +1,65 @@
+export function getIngredientMeasureType(ingredient) {
+  return ingredient?.measureType === "each" ? "each" : "weight";
+}
+
+export function getIngredientUnitLabel(ingredient) {
+  return ingredient?.eachLabel?.trim() || "item";
+}
+
+export function getIngredientCaloriesPerUnit(ingredient) {
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return Number(ingredient?.caloriesPerEach) || 0;
+  }
+
+  return Number(ingredient?.caloriesPer100g) || 0;
+}
+
+export function getIngredientProteinPerUnit(ingredient) {
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return Number(ingredient?.proteinPerEach) || 0;
+  }
+
+  return Number(ingredient?.proteinPer100g) || 0;
+}
+
+export function getRecipeItemAmount(item, ingredient) {
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return Number(item.quantity) || 0;
+  }
+
+  return Number(item.grams) || 0;
+}
+
+export function calculateIngredientItemNutrition(item, ingredient) {
+  const amount = getRecipeItemAmount(item, ingredient);
+
+  if (!ingredient || amount <= 0) {
+    return { calories: 0, protein: 0 };
+  }
+
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return {
+      calories: getIngredientCaloriesPerUnit(ingredient) * amount,
+      protein: getIngredientProteinPerUnit(ingredient) * amount
+    };
+  }
+
+  return {
+    calories: getIngredientCaloriesPerUnit(ingredient) * amount / 100,
+    protein: getIngredientProteinPerUnit(ingredient) * amount / 100
+  };
+}
+
 export function calculateRecipeNutrition(recipe, ingredients) {
   const items = recipe.items || [];
 
   return items.reduce(
     (totals, item) => {
       const ingredient = ingredients.find(i => i.id === item.ingredientId);
-      const grams = Number(item.grams) || 0;
+      const itemNutrition = calculateIngredientItemNutrition(item, ingredient);
 
-      if (!ingredient || grams <= 0) return totals;
-
-      totals.calories += (Number(ingredient.caloriesPer100g) || 0) * grams / 100;
-      totals.protein += (Number(ingredient.proteinPer100g) || 0) * grams / 100;
+      totals.calories += itemNutrition.calories;
+      totals.protein += itemNutrition.protein;
 
       return totals;
     },

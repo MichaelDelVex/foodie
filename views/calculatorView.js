@@ -6,7 +6,10 @@ import {
 import {
   calculatePerPortion,
   calculateRecipeNutrition,
-  formatMacro
+  formatMacro,
+  getIngredientCaloriesPerUnit,
+  getIngredientMeasureType,
+  getIngredientUnitLabel
 } from "../core/nutrition.js";
 import { closeModal, showModal } from "../core/modal.js";
 
@@ -44,19 +47,32 @@ function getRecipeCaloriesPerPortion(recipe) {
   return calculatePerPortion(totals, recipe.portions).calories;
 }
 
-function getIngredientCaloriesPer100g(ingredientId) {
+function getIngredient(ingredientId) {
   const ingredient = getIngredients().find((candidate) => candidate.id === ingredientId);
-  return Number(ingredient?.caloriesPer100g) || 0;
+  return ingredient;
 }
 
-function getCaloriesFromGrams(ingredientId, grams) {
-  return getIngredientCaloriesPer100g(ingredientId) * (Number(grams) || 0) / 100;
+function getCaloriesFromAmount(ingredientId, amount) {
+  const ingredient = getIngredient(ingredientId);
+  if (!ingredient) return 0;
+
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return getIngredientCaloriesPerUnit(ingredient) * (Number(amount) || 0);
+  }
+
+  return getIngredientCaloriesPerUnit(ingredient) * (Number(amount) || 0) / 100;
 }
 
-function getGramsFromCalories(ingredientId, calories) {
-  const caloriesPer100g = getIngredientCaloriesPer100g(ingredientId);
-  if (caloriesPer100g <= 0) return "";
-  return (Number(calories) || 0) * 100 / caloriesPer100g;
+function getAmountFromCalories(ingredientId, calories) {
+  const ingredient = getIngredient(ingredientId);
+  const caloriesPerUnit = getIngredientCaloriesPerUnit(ingredient);
+  if (!ingredient || caloriesPerUnit <= 0) return "";
+
+  if (getIngredientMeasureType(ingredient) === "each") {
+    return (Number(calories) || 0) / caloriesPerUnit;
+  }
+
+  return (Number(calories) || 0) * 100 / caloriesPerUnit;
 }
 
 function formatInputNumber(value, decimals = 1) {
@@ -65,9 +81,15 @@ function formatInputNumber(value, decimals = 1) {
   return Number(number.toFixed(decimals)).toString();
 }
 
+function formatAmount(value, decimals = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0";
+  return Number(number.toFixed(decimals)).toString();
+}
+
 function getScratchItemCalories(item) {
   if (item.type === "ingredient") {
-    return getCaloriesFromGrams(item.id, item.amount);
+    return getCaloriesFromAmount(item.id, item.amount);
   }
 
   if (item.type === "recipe") {
@@ -82,6 +104,14 @@ function getScratchItemCalories(item) {
     return getQuickFoodCalories(food) * (Number(item.amount) || 0);
   }
 
+  if (item.type === "manual" && item.manualBasis === "weight") {
+    return (Number(item.caloriesPer100g) || 0) * (Number(item.amount) || 0) / 100;
+  }
+
+  if (item.type === "manual" && item.manualBasis === "each") {
+    return (Number(item.caloriesPerEach) || 0) * (Number(item.amount) || 0);
+  }
+
   return Number(item.calories) || 0;
 }
 
@@ -91,7 +121,7 @@ function getScratchTotal() {
 
 function getScratchItemTitle(item) {
   if (item.type === "ingredient") {
-    return getIngredients().find((ingredient) => ingredient.id === item.id)?.name || "Missing ingredient";
+    return getIngredient(item.id)?.name || "Missing ingredient";
   }
 
   if (item.type === "recipe") {
@@ -108,7 +138,13 @@ function getScratchItemTitle(item) {
 
 function getScratchItemDetail(item) {
   if (item.type === "ingredient") {
-    return Number(item.amount) > 0 ? `${formatMacro(item.amount)}g raw` : "Add grams";
+    const ingredient = getIngredient(item.id);
+    const amount = Number(item.amount) || 0;
+    if (getIngredientMeasureType(ingredient) === "each") {
+      return amount > 0 ? `${formatAmount(amount, 2)} ${getIngredientUnitLabel(ingredient)}` : "Add quantity";
+    }
+
+    return amount > 0 ? `${formatAmount(amount, 1)}g raw` : "Add grams";
   }
 
   if (item.type === "recipe") {
@@ -123,7 +159,69 @@ function getScratchItemDetail(item) {
     return amount > 0 ? `${formatMacro(amount, 1)} x ${label}` : `Add serves · ${label}`;
   }
 
+  if (item.type === "manual" && item.manualBasis === "weight") {
+    const amount = Number(item.amount) || 0;
+    return amount > 0 ? `${formatAmount(amount, 1)}g` : "Add grams";
+  }
+
+  if (item.type === "manual" && item.manualBasis === "each") {
+    const amount = Number(item.amount) || 0;
+    return amount > 0 ? `${formatAmount(amount, 2)} ${item.unitLabel || "item"}` : "Add quantity";
+  }
+
   return item.notes || "Manual calories";
+}
+
+function getManualCaloriesFromAmount(item, amount) {
+  if (item.manualBasis === "weight") {
+    return (Number(item.caloriesPer100g) || 0) * (Number(amount) || 0) / 100;
+  }
+
+  if (item.manualBasis === "each") {
+    return (Number(item.caloriesPerEach) || 0) * (Number(amount) || 0);
+  }
+
+  return Number(item.calories) || 0;
+}
+
+function getManualAmountFromCalories(item, calories) {
+  if (item.manualBasis === "weight") {
+    const caloriesPer100g = Number(item.caloriesPer100g) || 0;
+    return caloriesPer100g > 0 ? (Number(calories) || 0) * 100 / caloriesPer100g : "";
+  }
+
+  if (item.manualBasis === "each") {
+    const caloriesPerEach = Number(item.caloriesPerEach) || 0;
+    return caloriesPerEach > 0 ? (Number(calories) || 0) / caloriesPerEach : "";
+  }
+
+  return "";
+}
+
+function renderManualScratchControls(item, index) {
+  if (item.manualBasis === "weight" || item.manualBasis === "each") {
+    const isEach = item.manualBasis === "each";
+    return `
+      <div class="paired-inputs">
+        <label class="scratch-amount">
+          <span>${isEach ? "Quantity" : "Grams"}</span>
+          <input data-scratch-field="amount" data-index="${index}" type="number" min="0" step="${isEach ? "0.1" : "1"}" value="${escapeHtml(item.amount)}" />
+        </label>
+
+        <label class="scratch-amount">
+          <span>Calories</span>
+          <input data-scratch-field="manualCalories" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(formatInputNumber(getScratchItemCalories(item), 0))}" />
+        </label>
+      </div>
+    `;
+  }
+
+  return `
+    <label class="scratch-amount">
+      <span>Calories</span>
+      <input data-scratch-field="calories" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.calories)}" />
+    </label>
+  `;
 }
 
 function renderScratchItems() {
@@ -146,8 +244,8 @@ function renderScratchItems() {
       ${item.type === "ingredient" ? `
         <div class="paired-inputs">
           <label class="scratch-amount">
-            <span>Grams</span>
-            <input data-scratch-field="amount" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.amount)}" />
+            <span>${getIngredientMeasureType(getIngredient(item.id)) === "each" ? "Quantity" : "Grams"}</span>
+            <input data-scratch-field="amount" data-index="${index}" type="number" min="0" step="${getIngredientMeasureType(getIngredient(item.id)) === "each" ? "0.1" : "1"}" value="${escapeHtml(item.amount)}" />
           </label>
 
           <label class="scratch-amount">
@@ -155,12 +253,7 @@ function renderScratchItems() {
             <input data-scratch-field="ingredientCalories" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(formatInputNumber(getScratchItemCalories(item), 0))}" />
           </label>
         </div>
-      ` : item.type === "manual" ? `
-        <label class="scratch-amount">
-          <span>Calories</span>
-          <input data-scratch-field="calories" data-index="${index}" type="number" min="0" step="1" value="${escapeHtml(item.calories)}" />
-        </label>
-      ` : `
+      ` : item.type === "manual" ? renderManualScratchControls(item, index) : `
         <label class="scratch-amount">
           <span>${item.type === "ingredient" ? "Grams" : "Serves"}</span>
           <input data-scratch-field="amount" data-index="${index}" type="number" min="0" step="${item.type === "ingredient" ? "1" : "0.1"}" value="${escapeHtml(item.amount)}" />
@@ -213,17 +306,31 @@ function refreshScratchCalories(index) {
 function refreshScratchPairedInput(index, field) {
   const item = scratchItems[index];
   const row = document.querySelector(`[data-scratch-item="${index}"]`);
-  if (!item || item.type !== "ingredient" || !row) return;
+  if (!item || !row) return;
 
-  const gramsInput = row.querySelector('[data-scratch-field="amount"]');
-  const caloriesInput = row.querySelector('[data-scratch-field="ingredientCalories"]');
+  const amountInput = row.querySelector('[data-scratch-field="amount"]');
+  const caloriesInput = row.querySelector('[data-scratch-field="ingredientCalories"], [data-scratch-field="manualCalories"]');
+
+  if (item.type === "manual") {
+    if (field === "amount" && caloriesInput) {
+      caloriesInput.value = formatInputNumber(getScratchItemCalories(item), 0);
+    }
+
+    if (field === "manualCalories" && amountInput) {
+      amountInput.value = item.amount;
+    }
+
+    return;
+  }
+
+  if (item.type !== "ingredient") return;
 
   if (field === "amount" && caloriesInput) {
     caloriesInput.value = formatInputNumber(getScratchItemCalories(item), 0);
   }
 
-  if (field === "ingredientCalories" && gramsInput) {
-    gramsInput.value = item.amount;
+  if (field === "ingredientCalories" && amountInput) {
+    amountInput.value = item.amount;
   }
 }
 
@@ -249,7 +356,9 @@ function renderPickerResults(type, query = "") {
     return renderPickerButtons(results, "ingredient", (ingredient) => ({
       id: ingredient.id,
       title: ingredient.name,
-      meta: `${formatMacro(ingredient.caloriesPer100g)} cal / 100g`
+      meta: getIngredientMeasureType(ingredient) === "each"
+        ? `${formatMacro(getIngredientCaloriesPerUnit(ingredient))} cal / ${getIngredientUnitLabel(ingredient)}`
+        : `${formatMacro(getIngredientCaloriesPerUnit(ingredient))} cal / 100g`
     }));
   }
 
@@ -335,6 +444,32 @@ function addPickedItem(type, id) {
   refreshScratchItems();
 }
 
+function refreshManualBasisFields() {
+  const basis = document.getElementById("manual-basis")?.value || "total";
+  const unitWrap = document.getElementById("manual-unit-wrap");
+  const amountWrap = document.getElementById("manual-amount-wrap");
+  const caloriesLabel = document.getElementById("manual-calories-label");
+  const amountLabel = document.getElementById("manual-amount-label");
+  const amountInput = document.getElementById("manual-amount");
+
+  if (unitWrap) unitWrap.classList.toggle("is-hidden", basis !== "each");
+  if (amountWrap) amountWrap.classList.toggle("is-hidden", basis === "total");
+
+  if (caloriesLabel) {
+    caloriesLabel.textContent = basis === "weight"
+      ? "Calories per 100g"
+      : basis === "each"
+        ? "Calories per item"
+        : "Calories";
+  }
+
+  if (amountLabel) amountLabel.textContent = basis === "each" ? "Quantity" : "Grams";
+  if (amountInput) {
+    amountInput.placeholder = basis === "each" ? "1.5" : "100";
+    amountInput.step = basis === "each" ? "0.1" : "1";
+  }
+}
+
 function openManualModal() {
   showModal({
     title: "Add Manual Calories",
@@ -348,8 +483,27 @@ function openManualModal() {
         </label>
 
         <label>
-          <span>Calories</span>
+          <span>Nutrition basis</span>
+          <select id="manual-basis">
+            <option value="total">Total calories</option>
+            <option value="weight">Per 100g</option>
+            <option value="each">Per item</option>
+          </select>
+        </label>
+
+        <label id="manual-unit-wrap" class="is-hidden">
+          <span>Item label</span>
+          <input id="manual-unit-label" type="text" placeholder="egg, tomato, banana" autocomplete="off" />
+        </label>
+
+        <label>
+          <span id="manual-calories-label">Calories</span>
           <input id="manual-calories" type="number" min="0" step="1" placeholder="280" />
+        </label>
+
+        <label id="manual-amount-wrap" class="is-hidden">
+          <span id="manual-amount-label">Grams</span>
+          <input id="manual-amount" type="number" min="0" step="1" placeholder="100" />
         </label>
 
         <label>
@@ -363,7 +517,10 @@ function openManualModal() {
         label: "Add",
         onClick: () => {
           const title = document.getElementById("manual-title").value.trim();
+          const manualBasis = document.getElementById("manual-basis").value;
           const calories = Number(document.getElementById("manual-calories").value);
+          const amount = Number(document.getElementById("manual-amount").value);
+          const unitLabel = document.getElementById("manual-unit-label").value.trim();
           const notes = document.getElementById("manual-notes").value.trim();
           const error = document.getElementById("manual-calories-error");
 
@@ -372,17 +529,40 @@ function openManualModal() {
             return false;
           }
 
+          if (manualBasis === "each" && !unitLabel) {
+            error.textContent = "Add an item label.";
+            return false;
+          }
+
           if (!Number.isFinite(calories) || calories < 0) {
             error.textContent = "Calories must be zero or higher.";
             return false;
           }
 
-          scratchItems.push({
+          if (manualBasis !== "total" && (!Number.isFinite(amount) || amount <= 0)) {
+            error.textContent = manualBasis === "each" ? "Add a quantity." : "Add grams.";
+            return false;
+          }
+
+          const manualItem = {
             type: "manual",
             title,
-            calories,
+            manualBasis,
             notes
-          });
+          };
+
+          if (manualBasis === "weight") {
+            manualItem.caloriesPer100g = calories;
+            manualItem.amount = amount;
+          } else if (manualBasis === "each") {
+            manualItem.caloriesPerEach = calories;
+            manualItem.amount = amount;
+            manualItem.unitLabel = unitLabel;
+          } else {
+            manualItem.calories = calories;
+          }
+
+          scratchItems.push(manualItem);
 
           refreshScratchItems();
           return true;
@@ -465,9 +645,15 @@ function bindCalculatorListeners() {
     if (!scratchItems[index]) return;
 
     if (field === "ingredientCalories" && scratchItems[index].type === "ingredient") {
+      const ingredient = getIngredient(scratchItems[index].id);
       scratchItems[index].amount = formatInputNumber(
-        getGramsFromCalories(scratchItems[index].id, target.value),
-        1
+        getAmountFromCalories(scratchItems[index].id, target.value),
+        getIngredientMeasureType(ingredient) === "each" ? 2 : 1
+      );
+    } else if (field === "manualCalories" && scratchItems[index].type === "manual") {
+      scratchItems[index].amount = formatInputNumber(
+        getManualAmountFromCalories(scratchItems[index], target.value),
+        scratchItems[index].manualBasis === "each" ? 2 : 1
       );
     } else {
       scratchItems[index][field] = target.value;
@@ -475,6 +661,10 @@ function bindCalculatorListeners() {
 
     refreshScratchPairedInput(index, field);
     refreshScratchCalories(index);
+  });
+
+  document.addEventListener("change", (event) => {
+    if (event.target.id === "manual-basis") refreshManualBasisFields();
   });
 }
 
